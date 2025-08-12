@@ -1,0 +1,463 @@
+Summary:
+      -  Profile  ID:  14fd80ca658747be-952f69158831957b
+      -  Task  Type:  QUERY
+      -  Start  Time:  2025-08-12  03:18:50
+      -  End  Time:  2025-08-12  03:19:04
+      -  Total:  13sec942ms
+      -  Task  State:  OK
+      -  User:  root
+      -  Default  Catalog:  dlf
+      -  Default  Db:  tpch100_oss
+      -  Sql  Statement:  select
+        l_orderkey,
+        sum(l_extendedprice  *  (1  -  l_discount))  as  revenue,
+        o_orderdate,
+        o_shippriority
+from
+        customer,
+        orders,
+        lineitem
+where
+        c_mktsegment  =  'BUILDING'
+        and  c_custkey  =  o_custkey
+        and  l_orderkey  =  o_orderkey
+        and  o_orderdate  <  date  '1995-03-15'
+        and  l_shipdate  >  date  '1995-03-15'
+group  by
+        l_orderkey,
+        o_orderdate,
+        o_shippriority
+order  by
+        revenue  desc,
+        o_orderdate
+limit  10
+      -  Distributed  Plan:  N/A
+Execution  Summary:
+      -  Workload  Group:  normal
+      -  Parse  SQL  Time:  24ms
+      -  Plan  Time:  1sec33ms
+          -  Garbage  Collect  During  Plan  Time:  0ms
+          -  Nereids  Lock  Table  Time:  1ms
+          -  Nereids  Analysis  Time:  13ms
+          -  Nereids  Rewrite  Time:  57ms
+              -  Nereids  Fold  Const  By  BE  Time:  0ms
+          -  Nereids  Collect  Table  Partition  Time:  0ms
+          -  Nereids  Optimize  Time:  56ms
+          -  Nereids  Translate  Time:  12ms
+              -  Init  Scan  Node  Time:  0ms
+              -  Finalize  Scan  Node  Time:  24ms
+                  -  Get  Splits  Time:  16ms
+                  -  Get  Partitions  Time:  0ms
+                  -  Get  Partition  Files  Time:  16ms
+              -  Create  Scan  Range  Time:  8ms
+          -  Nereids  Distribute  Time:  903ms
+      -  Get  Meta  Version  Time:  N/A
+          -  Get  Partition  Version  Time:  N/A
+          -  Get  Partition  Version  Count  (hasData):  N/A
+          -  Get  Partition  Version  Count:  N/A
+          -  Get  Table  Version  Time:  N/A
+          -  Get  Table  Version  Count:  N/A
+      -  Schedule  Time:  86ms
+          -  Fragment  Assign  Time:  9ms
+          -  Fragment  Serialize  Time:  46ms
+          -  Fragment  RPC  Phase1  Time:  29ms
+          -  Fragment  RPC  Phase2  Time:  2ms
+          -  Fragment  Compressed  Size:  85.73  KB
+          -  Fragment  RPC  Count:  2
+      -  Schedule  Time  Of  BE:  {"phase1":{"172.20.32.136:  8067":{"RPC  Work  Time":"21ms","RPC  Latency  From  FE  To  BE":"3ms","RPC  Work  Queue  Time":"0ms","RPC  Latency  From  BE  To  FE":"1ms"}},"phase2":{"172.20.32.136:  8067":{"RPC  Work  Time":"0ms","RPC  Latency  From  FE  To  BE":"1ms","RPC  Work  Queue  Time":"0ms","RPC  Latency  From  BE  To  FE":"0ms"}}}
+      -  Wait  and  Fetch  Result  Time:  12sec822ms
+      -  Fetch  Result  Time:  12sec820ms
+      -  Write  Result  Time:  0ms
+      -  Doris  Version:  369c4b53e8
+      -  Is  Nereids:  Yes
+      -  Is  Cached:  No
+      -  Total  Instances  Num:  6
+      -  Instances  Num  Per  BE:  172.20.32.136:8067:6
+      -  Parallel  Fragment  Exec  Instance  Num:  8
+      -  Trace  ID:  
+      -  Transaction  Commit  Time:  N/A
+      -  System  Message:  N/A
+      -  Executed  By  Frontend:  N/A
+      -  Splits  Assignment  Weight:  N/A
+
+ChangedSessionVariables:
+
+MergedProfile:
+          Fragments:
+              Fragment  0:
+                  Pipeline  0(instance_num=1):
+                        -  WaitWorkerTime:  avg  25.185us,  max  25.185us,  min  25.185us
+                      RESULT_SINK_OPERATOR(id=2147483647):
+                          CommonCounters:
+                                -  ExecTime:  avg  170.233us,  max  170.233us,  min  170.233us
+                                -  InputRows:  sum  10,  avg  10,  max  10,  min  10
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  WaitForDependency[RESULT_SINK_OPERATOR_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                      EXCHANGE_OPERATOR(id=11):
+                            -  PlanInfo
+                                  -  offset:  0
+                                  -  limit:  10
+                          CommonCounters:
+                                -  BlocksProduced:  sum  1,  avg  1,  max  1,  min  1
+                                -  ExecTime:  avg  78.529us,  max  78.529us,  min  78.529us
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  2.00  KB,  avg  2.00  KB,  max  2.00  KB,  min  2.00  KB
+                                -  RowsProduced:  sum  10,  avg  10,  max  10,  min  10
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForData0:  avg  12sec812ms,  max  12sec812ms,  min  12sec812ms
+              Fragment  1:
+                  Pipeline  0(instance_num=8):
+                        -  WaitWorkerTime:  avg  36.57us,  max  80.168us,  min  10.307us
+                      DATA_STREAM_SINK_OPERATOR(dest_id=11):
+                          CommonCounters:
+                                -  ExecTime:  avg  26.866us,  max  35.806us,  min  15.303us
+                                -  InputRows:  sum  10,  avg  1,  max  10,  min  0
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForRpcBufferQueue:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  BlocksProduced:  sum  8,  avg  1,  max  1,  min  1
+                                -  OverallThroughput:  sum  0.0  /sec,  avg  0.0  /sec,  max  0.0  /sec,  min  0.0  /sec
+                      LOCAL_MERGE_SORT_SOURCE_OPERATOR(nereids_id=888)(id=10):
+                            -  PlanInfo
+                                  -  order  by:  revenue  DESC,  o_orderdate  ASC
+                                  -  algorithm:  heap  sort
+                                  -  local  merge  sort
+                                  -  merge  by  exchange
+                                  -  offset:  0
+                                  -  limit:  10
+                          CommonCounters:
+                                -  BlocksProduced:  sum  1,  avg  0,  max  1,  min  0
+                                -  ExecTime:  avg  41.631us,  max  311.531us,  min  994ns
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  RowsProduced:  sum  10,  avg  1,  max  10,  min  0
+                                -  WaitForDependency[LOCAL_MERGE_SORT_SOURCE_OPERATOR_DEPENDENCY]Time:  avg  12sec806ms,  max  12sec812ms,  min  12sec804ms
+                          CustomCounters:
+                  Pipeline  1(instance_num=8):
+                        -  WaitWorkerTime:  avg  5.642ms,  max  10.362ms,  min  22.410us
+                      SORT_SINK_OPERATOR(nereids_id=888)(id=10):
+                          CommonCounters:
+                                -  ExecTime:  avg  19.921ms,  max  32.315ms,  min  13.808ms
+                                -  InputRows:  sum  1.131041M  (1131041),  avg  141.38K  (141380),  max  141.765K  (141765),  min  141.003K  (141003)
+                                -  MemoryUsage:  sum  8.09  MB,  avg  1.01  MB,  max  1.09  MB,  min  1008.00  KB
+                                -  MemoryUsagePeak:  sum  8.09  MB,  avg  1.01  MB,  max  1.09  MB,  min  1008.00  KB
+                                -  WaitForDependency[SORT_SINK_OPERATOR_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  MemoryUsageSortBlocks:  sum  8.09  MB,  avg  1.01  MB,  max  1.09  MB,  min  1008.00  KB
+                      LOCAL_EXCHANGE_OPERATOR(PASSTHROUGH)(id=-5):
+                          CommonCounters:
+                                -  BlocksProduced:  sum  280,  avg  35,  max  35,  min  35
+                                -  ExecTime:  avg  74.38us,  max  88.876us,  min  56.351us
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  18.92  MB,  avg  2.37  MB,  max  3.39  MB,  min  1.20  MB
+                                -  RowsProduced:  sum  1.131041M  (1131041),  avg  141.38K  (141380),  max  141.765K  (141765),  min  141.003K  (141003)
+                                -  WaitForDependency[LOCAL_EXCHANGE_OPERATOR_DEPENDENCY]Time:  avg  12sec780ms,  max  12sec784ms,  min  12sec778ms
+                          CustomCounters:
+                                -  GetBlockFailedTime:  sum  8,  avg  1,  max  2,  min  0
+                  Pipeline  2(instance_num=8):
+                        -  WaitWorkerTime:  avg  2.268ms,  max  7.172ms,  min  26.524us
+                      LOCAL_EXCHANGE_SINK_OPERATOR(PASSTHROUGH)(id=-5):
+                          CommonCounters:
+                                -  ExecTime:  avg  123.745us,  max  177.320us,  min  74.891us
+                                -  InputRows:  sum  1.131041M  (1131041),  avg  141.38K  (141380),  max  141.765K  (141765),  min  141.003K  (141003)
+                                -  MemoryUsage:  sum  101.39  MB,  avg  12.67  MB,  max  16.19  MB,  min  3.72  MB
+                                -  MemoryUsagePeak:  sum  113.86  MB,  avg  14.23  MB,  max  16.30  MB,  min  13.02  MB
+                                -  WaitForDependency[LOCAL_EXCHANGE_SINK_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                      AGGREGATION_OPERATOR(nereids_id=885)(id=9):
+                            -  PlanInfo
+                                  -  output:  sum((l_extendedprice  *  (1.0  -  l_discount)))[#62]
+                                  -  group  by:  l_orderkey,  o_orderdate,  o_shippriority
+                                  -  sortByGroupKey:false
+                                  -  cardinality=100,006,317
+                          CommonCounters:
+                                -  BlocksProduced:  sum  280,  avg  35,  max  35,  min  35
+                                -  ExecTime:  avg  6.596ms,  max  11.511ms,  min  4.724ms
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  RowsProduced:  sum  1.131041M  (1131041),  avg  141.38K  (141380),  max  141.765K  (141765),  min  141.003K  (141003)
+                                -  WaitForDependency[AGGREGATION_OPERATOR_DEPENDENCY]Time:  avg  12sec780ms,  max  12sec789ms,  min  12sec778ms
+                          CustomCounters:
+                                -  HashTableInputCount:  sum  0,  avg  0,  max  0,  min  0
+                                -  HashTableSize:  sum  0,  avg  0,  max  0,  min  0
+                                -  MemoryUsageHashTable:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                  Pipeline  3(instance_num=8):
+                        -  WaitWorkerTime:  avg  65.821ms,  max  96.573ms,  min  31.737ms
+                      AGGREGATION_SINK_OPERATOR(nereids_id=885)(id=9):
+                          CommonCounters:
+                                -  ExecTime:  avg  1sec604ms,  max  1sec789ms,  min  1sec356ms
+                                -  InputRows:  sum  2.987578M  (2987578),  avg  373.447K  (373447),  max  374.574K  (374574),  min  372.519K  (372519)
+                                -  MemoryUsage:  sum  132.94  MB,  avg  16.62  MB,  max  16.62  MB,  min  16.62  MB
+                                -  MemoryUsagePeak:  sum  132.94  MB,  avg  16.62  MB,  max  16.62  MB,  min  16.62  MB
+                                -  WaitForDependency[AGGREGATION_SINK_OPERATOR_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  MemoryUsageHashTable:  sum  64.00  MB,  avg  8.00  MB,  max  8.00  MB,  min  8.00  MB
+                                -  MemoryUsageSerializeKeyArena:  sum  68.94  MB,  avg  8.62  MB,  max  8.62  MB,  min  8.62  MB
+                      HASH_JOIN_OPERATOR(nereids_id=858)(id=8):
+                            -  PlanInfo
+                                  -  join  op:  INNER  JOIN(PARTITIONED)[]
+                                  -  equal  join  conjunct:  (l_orderkey  =  o_orderkey)
+                                  -  cardinality=300,018,951
+                                  -  vec  output  tuple  id:  9
+                                  -  output  tuple  id:  9
+                                  -  vIntermediate  tuple  ids:  8  
+                                  -  hash  output  slot  ids:  48  28  29  46  47  
+                                  -  projections:  l_orderkey,  o_orderdate,  o_shippriority,  (l_extendedprice  *  (1  -  l_discount))
+                                  -  project  output  tuple  id:  9
+                          CommonCounters:
+                                -  BlocksProduced:  sum  2.064K  (2064),  avg  258,  max  259,  min  257
+                                -  ExecTime:  avg  202.14ms,  max  401.863ms,  min  79.840ms
+                                -  MemoryUsage:  sum  553.50  KB,  avg  69.19  KB,  max  108.00  KB,  min  13.50  KB
+                                -  MemoryUsagePeak:  sum  1.69  MB,  avg  216.00  KB,  max  216.00  KB,  min  216.00  KB
+                                -  RowsProduced:  sum  2.987578M  (2987578),  avg  373.447K  (373447),  max  374.574K  (374574),  min  372.519K  (372519)
+                                -  WaitForDependency[HASH_JOIN_OPERATOR_DEPENDENCY]Time:  avg  3sec215ms,  max  3sec230ms,  min  3sec206ms
+                          CustomCounters:
+                                -  MemoryUsageProbeKeyArena:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsageProbeKeyArenaPeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  ProbeIntermediateRows:  sum  2.987578M  (2987578),  avg  373.447K  (373447),  max  374.574K  (374574),  min  372.519K  (372519)
+                                -  ProbeRows:  sum  8.711884M  (8711884),  avg  1.088985M  (1088985),  max  1.092645M  (1092645),  min  1.085875M  (1085875)
+                      EXCHANGE_OPERATOR(id=7):
+                          CommonCounters:
+                                -  BlocksProduced:  sum  2.064K  (2064),  avg  258,  max  259,  min  257
+                                -  ExecTime:  avg  1sec190ms,  max  1sec476ms,  min  1sec1ms
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  152.78  MB,  avg  19.10  MB,  max  19.97  MB,  min  15.19  MB
+                                -  RowsProduced:  sum  8.711884M  (8711884),  avg  1.088985M  (1088985),  max  1.092645M  (1092645),  min  1.085875M  (1085875)
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForData0:  avg  6sec480ms,  max  6sec751ms,  min  6sec159ms
+                  Pipeline  4(instance_num=8):
+                        -  WaitWorkerTime:  avg  447.352ms,  max  819.930ms,  min  238.179ms
+                      HASH_JOIN_SINK_OPERATOR(nereids_id=858)(id=8):
+                          CommonCounters:
+                                -  ExecTime:  avg  465.11ms,  max  597.114ms,  min  305.336ms
+                                -  InputRows:  sum  14.567861M  (14567861),  avg  1.820982M  (1820982),  max  1.821768M  (1821768),  min  1.819884M  (1819884)
+                                -  MemoryUsage:  sum  423.57  MB,  avg  52.95  MB,  max  52.95  MB,  min  52.94  MB
+                                -  MemoryUsagePeak:  sum  423.57  MB,  avg  52.95  MB,  max  52.95  MB,  min  52.94  MB
+                                -  WaitForDependency[HASH_JOIN_SINK_OPERATOR_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  MemoryUsageBuildBlocks:  sum  304.00  MB,  avg  38.00  MB,  max  38.00  MB,  min  38.00  MB
+                                -  MemoryUsageBuildKeyArena:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsageHashTable:  sum  119.57  MB,  avg  14.95  MB,  max  14.95  MB,  min  14.94  MB
+                                -  RuntimeFilterInfo:  sum  ,  avg  ,  max  ,  min  
+                                    -  BuildTime:  avg  50.287ms,  max  67.182ms,  min  42.663ms
+                                    -  PublishTime:  avg  2.841ms,  max  5.847ms,  min  5.16us
+                      EXCHANGE_OPERATOR(id=5):
+                            -  PlanInfo
+                                  -  offset:  0
+                          CommonCounters:
+                                -  BlocksProduced:  sum  3.496K  (3496),  avg  437,  max  439,  min  435
+                                -  ExecTime:  avg  398.719ms,  max  625.519ms,  min  183.494ms
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  39.74  MB,  avg  4.97  MB,  max  8.05  MB,  min  3.27  MB
+                                -  RowsProduced:  sum  14.567861M  (14567861),  avg  1.820982M  (1820982),  max  1.821768M  (1821768),  min  1.819884M  (1819884)
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForData0:  avg  1sec902ms,  max  1sec946ms,  min  1sec824ms
+              Fragment  2:
+                  Pipeline  0(instance_num=8):
+                        -  WaitWorkerTime:  avg  248.365ms,  max  428.666ms,  min  183.229ms
+                      DATA_STREAM_SINK_OPERATOR(dest_id=7):
+                          CommonCounters:
+                                -  ExecTime:  avg  1sec631ms,  max  2sec286ms,  min  201.157ms
+                                -  InputRows:  sum  8.711884M  (8711884),  avg  1.088985M  (1088985),  max  1.117551M  (1117551),  min  1.016691M  (1016691)
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  6.75  MB,  avg  864.00  KB,  max  864.00  KB,  min  864.00  KB
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForLocalExchangeBuffer0:  avg  394.292ms,  max  394.292ms,  min  394.292ms
+                                    -  WaitForLocalExchangeBuffer1:  avg  65.555ms,  max  65.555ms,  min  65.555ms
+                                    -  WaitForLocalExchangeBuffer2:  avg  153.434ms,  max  153.434ms,  min  153.434ms
+                                    -  WaitForLocalExchangeBuffer4:  avg  88.531ms,  max  88.531ms,  min  88.531ms
+                                    -  WaitForLocalExchangeBuffer5:  avg  5.909ms,  max  5.909ms,  min  5.909ms
+                                    -  WaitForLocalExchangeBuffer6:  avg  135.501ms,  max  135.501ms,  min  135.501ms
+                                    -  WaitForRpcBufferQueue:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  BlocksProduced:  sum  2.069K  (2069),  avg  258,  max  267,  min  240
+                                -  OverallThroughput:  sum  0.0  /sec,  avg  0.0  /sec,  max  0.0  /sec,  min  0.0  /sec
+                      FILE_SCAN_OPERATOR  (id=6.  nereids_id=804.  table  name  =  lineitem):
+                            -  PlanInfo
+                                  -  table:  dlf.tpch100_oss.lineitem
+                                  -  predicates:  (l_shipdate  >  '1995-03-15')
+                                  -  runtime  filters:  RF002[min_max]  ->  l_orderkey,  RF003[in_or_bloom]  ->  l_orderkey
+                                  -  inputSplitNum=288,  totalFileSize=19039320682,  scanRanges=288
+                                  -  partition=1/1
+                                  -  cardinality=600037902,  numNodes=1
+                                  -  pushdown  agg=NONE
+                                  -  projections:  l_orderkey,  l_extendedprice,  l_discount
+                                  -  project  output  tuple  id:  7
+                          CommonCounters:
+                                -  BlocksProduced:  sum  3.186K  (3186),  avg  398,  max  412,  min  384
+                                -  ExecTime:  avg  10sec180ms,  max  11sec428ms,  min  9sec377ms
+                                -  MemoryUsage:  sum  60.63  MB,  avg  7.58  MB,  max  12.33  MB,  min  4.55  MB
+                                -  MemoryUsagePeak:  sum  60.73  MB,  avg  7.59  MB,  max  12.33  MB,  min  4.55  MB
+                                -  RowsProduced:  sum  8.711884M  (8711884),  avg  1.088985M  (1088985),  max  1.117551M  (1117551),  min  1.016691M  (1016691)
+                                -  WaitForDependency[FILE_SCAN_OPERATOR_DEPENDENCY]Time:  avg  6sec692ms,  max  7sec980ms,  min  5sec870ms
+                          CustomCounters:
+                                -  RuntimeFilterInfo:  sum  ,  avg  ,  max  ,  min  
+                                    -  RF2  FilterRows:  sum  0,  avg  0,  max  0,  min  0
+                                    -  RF2  InputRows:  sum  21.45506M  (21455060),  avg  2.681882M  (2681882),  max  2.861584M  (2861584),  min  2.339011M  (2339011)
+                                    -  RF3  FilterRows:  sum  532.104323M  (532104323),  avg  66.51304M  (66513040),  max  67.934884M  (67934884),  min  62.220743M  (62220743)
+                                    -  RF3  InputRows:  sum  600.037902M  (600037902),  avg  75.004737M  (75004737),  max  76.598599M  (76598599),  min  70.157082M  (70157082)
+                                -  ScanBytes:  sum  4.49  GB,  avg  574.35  MB,  max  586.55  MB,  min  537.28  MB
+                                -  ScanRows:  sum  600.037902M  (600037902),  avg  75.004737M  (75004737),  max  76.598599M  (76598599),  min  70.157082M  (70157082)
+              Fragment  3:
+                  Pipeline  0(instance_num=8):
+                        -  WaitWorkerTime:  avg  249.539ms,  max  608.874ms,  min  33.123ms
+                      DATA_STREAM_SINK_OPERATOR(dest_id=5):
+                          CommonCounters:
+                                -  ExecTime:  avg  613.986ms,  max  857.83ms,  min  308.796ms
+                                -  InputRows:  sum  14.567861M  (14567861),  avg  1.820982M  (1820982),  max  1.829901M  (1829901),  min  1.813198M  (1813198)
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  4.75  MB,  avg  608.00  KB,  max  608.00  KB,  min  608.00  KB
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForRpcBufferQueue:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  BlocksProduced:  sum  3.499K  (3499),  avg  437,  max  440,  min  435
+                                -  OverallThroughput:  sum  0.0  /sec,  avg  0.0  /sec,  max  0.0  /sec,  min  0.0  /sec
+                      HASH_JOIN_OPERATOR(nereids_id=846)(id=4):
+                            -  PlanInfo
+                                  -  join  op:  INNER  JOIN(PARTITIONED)[]
+                                  -  equal  join  conjunct:  (o_custkey  =  c_custkey)
+                                  -  cardinality=75,000,000
+                                  -  vec  output  tuple  id:  5
+                                  -  output  tuple  id:  5
+                                  -  vIntermediate  tuple  ids:  4  
+                                  -  hash  output  slot  ids:  18  20  21  
+                                  -  projections:  o_orderkey,  o_orderdate,  o_shippriority
+                                  -  project  output  tuple  id:  5
+                          CommonCounters:
+                                -  BlocksProduced:  sum  6.209K  (6209),  avg  776,  max  785,  min  763
+                                -  ExecTime:  avg  206.332ms,  max  292.148ms,  min  155.298ms
+                                -  MemoryUsage:  sum  732.00  KB,  avg  91.50  KB,  max  224.00  KB,  min  28.00  KB
+                                -  MemoryUsagePeak:  sum  1.75  MB,  avg  224.00  KB,  max  224.00  KB,  min  224.00  KB
+                                -  RowsProduced:  sum  14.567861M  (14567861),  avg  1.820982M  (1820982),  max  1.829901M  (1829901),  min  1.813198M  (1813198)
+                                -  WaitForDependency[HASH_JOIN_OPERATOR_DEPENDENCY]Time:  avg  641.580ms,  max  646.469ms,  min  637.792ms
+                          CustomCounters:
+                                -  MemoryUsageProbeKeyArena:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsageProbeKeyArenaPeak:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  ProbeIntermediateRows:  sum  14.567861M  (14567861),  avg  1.820982M  (1820982),  max  1.829901M  (1829901),  min  1.813198M  (1813198)
+                                -  ProbeRows:  sum  15.01788M  (15017880),  avg  1.877235M  (1877235),  max  1.886865M  (1886865),  min  1.869387M  (1869387)
+                      EXCHANGE_OPERATOR(id=3):
+                          CommonCounters:
+                                -  BlocksProduced:  sum  3.539K  (3539),  avg  442,  max  443,  min  442
+                                -  ExecTime:  avg  350.642ms,  max  507.33ms,  min  191.259ms
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  135.37  MB,  avg  16.92  MB,  max  19.89  MB,  min  13.78  MB
+                                -  RowsProduced:  sum  15.01788M  (15017880),  avg  1.877235M  (1877235),  max  1.886865M  (1886865),  min  1.869387M  (1869387)
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForData0:  avg  1sec116ms,  max  1sec179ms,  min  1sec63ms
+                  Pipeline  1(instance_num=8):
+                        -  WaitWorkerTime:  avg  10.602ms,  max  13.798ms,  min  6.438ms
+                      HASH_JOIN_SINK_OPERATOR(nereids_id=846)(id=4):
+                          CommonCounters:
+                                -  ExecTime:  avg  9.455ms,  max  13.819ms,  min  7.894ms
+                                -  InputRows:  sum  3.000188M  (3000188),  avg  375.023K  (375023),  max  375.799K  (375799),  min  373.883K  (373883)
+                                -  MemoryUsage:  sum  63.44  MB,  avg  7.93  MB,  max  7.93  MB,  min  7.93  MB
+                                -  MemoryUsagePeak:  sum  63.44  MB,  avg  7.93  MB,  max  7.93  MB,  min  7.93  MB
+                                -  WaitForDependency[HASH_JOIN_SINK_OPERATOR_DEPENDENCY]Time:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  MemoryUsageBuildBlocks:  sum  36.00  MB,  avg  4.50  MB,  max  4.50  MB,  min  4.50  MB
+                                -  MemoryUsageBuildKeyArena:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsageHashTable:  sum  27.44  MB,  avg  3.43  MB,  max  3.43  MB,  min  3.43  MB
+                                -  RuntimeFilterInfo:  sum  ,  avg  ,  max  ,  min  
+                                    -  BuildTime:  avg  6.177ms,  max  8.631ms,  min  4.743ms
+                                    -  PublishTime:  avg  496.95us,  max  1.942ms,  min  5.4us
+                      EXCHANGE_OPERATOR(id=1):
+                            -  PlanInfo
+                                  -  offset:  0
+                          CommonCounters:
+                                -  BlocksProduced:  sum  734,  avg  91,  max  93,  min  91
+                                -  ExecTime:  avg  1.664ms,  max  8.796ms,  min  489.928us
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  3.42  MB,  avg  438.00  KB,  max  576.00  KB,  min  328.00  KB
+                                -  RowsProduced:  sum  3.000188M  (3000188),  avg  375.023K  (375023),  max  375.799K  (375799),  min  373.883K  (373883)
+                          CustomCounters:
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForData0:  avg  619.624ms,  max  621.938ms,  min  617.300ms
+              Fragment  4:
+                  Pipeline  0(instance_num=8):
+                        -  WaitWorkerTime:  avg  507.677ms,  max  682.207ms,  min  283.49ms
+                      DATA_STREAM_SINK_OPERATOR(dest_id=3):
+                          CommonCounters:
+                                -  ExecTime:  avg  603.242ms,  max  860.189ms,  min  427.816ms
+                                -  InputRows:  sum  15.01788M  (15017880),  avg  1.877235M  (1877235),  max  1.905059M  (1905059),  min  1.858987M  (1858987)
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  7.00  MB,  avg  896.00  KB,  max  896.00  KB,  min  896.00  KB
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForLocalExchangeBuffer0:  avg  33.931ms,  max  33.931ms,  min  33.931ms
+                                    -  WaitForLocalExchangeBuffer5:  avg  110.156ms,  max  110.156ms,  min  110.156ms
+                                    -  WaitForRpcBufferQueue:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  BlocksProduced:  sum  3.541K  (3541),  avg  442,  max  449,  min  439
+                                -  OverallThroughput:  sum  0.0  /sec,  avg  0.0  /sec,  max  0.0  /sec,  min  0.0  /sec
+                      FILE_SCAN_OPERATOR  (id=2.  nereids_id=817.  table  name  =  orders):
+                            -  PlanInfo
+                                  -  table:  dlf.tpch100_oss.orders
+                                  -  predicates:  (o_orderdate  <  '1995-03-15')
+                                  -  runtime  filters:  RF000[min_max]  ->  o_custkey,  RF001[in_or_bloom]  ->  o_custkey
+                                  -  inputSplitNum=72,  totalFileSize=4349153163,  scanRanges=72
+                                  -  partition=1/1
+                                  -  cardinality=150000000,  numNodes=1
+                                  -  pushdown  agg=NONE
+                                  -  projections:  o_orderkey,  o_custkey,  o_orderdate,  o_shippriority
+                                  -  project  output  tuple  id:  3
+                          CommonCounters:
+                                -  BlocksProduced:  sum  4.072K  (4072),  avg  509,  max  523,  min  503
+                                -  ExecTime:  avg  1sec904ms,  max  2sec85ms,  min  1sec781ms
+                                -  MemoryUsage:  sum  170.75  MB,  avg  21.34  MB,  max  44.11  MB,  min  5.51  MB
+                                -  MemoryUsagePeak:  sum  170.97  MB,  avg  21.37  MB,  max  44.20  MB,  min  5.51  MB
+                                -  RowsProduced:  sum  15.01788M  (15017880),  avg  1.877235M  (1877235),  max  1.905059M  (1905059),  min  1.858987M  (1858987)
+                                -  WaitForDependency[FILE_SCAN_OPERATOR_DEPENDENCY]Time:  avg  1sec232ms,  max  1sec414ms,  min  1sec113ms
+                          CustomCounters:
+                                -  RuntimeFilterInfo:  sum  ,  avg  ,  max  ,  min  
+                                    -  RF0  FilterRows:  sum  0,  avg  0,  max  0,  min  0
+                                    -  RF0  InputRows:  sum  5.535719M  (5535719),  avg  691.964K  (691964),  max  759.968K  (759968),  min  646.176K  (646176)
+                                    -  RF1  FilterRows:  sum  119.085126M  (119085126),  avg  14.88564M  (14885640),  max  15.100387M  (15100387),  min  14.742043M  (14742043)
+                                    -  RF1  InputRows:  sum  150.0M  (150000000),  avg  18.75M  (18750000),  max  19.021412M  (19021412),  min  18.569861M  (18569861)
+                                -  ScanBytes:  sum  753.28  MB,  avg  94.16  MB,  max  95.54  MB,  min  93.26  MB
+                                -  ScanRows:  sum  150.0M  (150000000),  avg  18.75M  (18750000),  max  19.021412M  (19021412),  min  18.569861M  (18569861)
+              Fragment  5:
+                  Pipeline  0(instance_num=8):
+                        -  WaitWorkerTime:  avg  186.702us,  max  632.46us,  min  36.966us
+                      DATA_STREAM_SINK_OPERATOR(dest_id=1):
+                          CommonCounters:
+                                -  ExecTime:  avg  9.114ms,  max  10.785ms,  min  7.109ms
+                                -  InputRows:  sum  3.000188M  (3000188),  avg  375.023K  (375023),  max  421.069K  (421069),  min  336.681K  (336681)
+                                -  MemoryUsage:  sum  0.00  ,  avg  0.00  ,  max  0.00  ,  min  0.00  
+                                -  MemoryUsagePeak:  sum  2.25  MB,  avg  288.00  KB,  max  288.00  KB,  min  288.00  KB
+                                -  WaitForDependencyTime:  avg  0ns,  max  0ns,  min  0ns
+                                    -  WaitForRpcBufferQueue:  avg  0ns,  max  0ns,  min  0ns
+                          CustomCounters:
+                                -  BlocksProduced:  sum  735,  avg  91,  max  104,  min  80
+                                -  OverallThroughput:  sum  0.0  /sec,  avg  0.0  /sec,  max  0.0  /sec,  min  0.0  /sec
+                      FILE_SCAN_OPERATOR  (id=0.  nereids_id=830.  table  name  =  customer):
+                            -  PlanInfo
+                                  -  table:  dlf.tpch100_oss.customer
+                                  -  predicates:  (c_mktsegment  =  'BUILDING')
+                                  -  inputSplitNum=24,  totalFileSize=829792357,  scanRanges=24
+                                  -  partition=1/1
+                                  -  cardinality=15000000,  numNodes=1
+                                  -  pushdown  agg=NONE
+                                  -  projections:  c_custkey
+                                  -  project  output  tuple  id:  1
+                          CommonCounters:
+                                -  BlocksProduced:  sum  840,  avg  105,  max  118,  min  96
+                                -  ExecTime:  avg  507.730ms,  max  622.539ms,  min  406.166ms
+                                -  MemoryUsage:  sum  12.75  MB,  avg  1.59  MB,  max  2.25  MB,  min  1.30  MB
+                                -  MemoryUsagePeak:  sum  12.80  MB,  avg  1.60  MB,  max  2.25  MB,  min  1.30  MB
+                                -  RowsProduced:  sum  3.000188M  (3000188),  avg  375.023K  (375023),  max  421.069K  (421069),  min  336.681K  (336681)
+                                -  WaitForDependency[FILE_SCAN_OPERATOR_DEPENDENCY]Time:  avg  504.72ms,  max  619.326ms,  min  402.147ms
+                          CustomCounters:
+                                -  RuntimeFilterInfo:  sum  ,  avg  ,  max  ,  min  
+                                -  ScanBytes:  sum  18.49  MB,  avg  2.31  MB,  max  2.59  MB,  min  2.08  MB
+                                -  ScanRows:  sum  15.0M  (15000000),  avg  1.875M  (1875000),  max  2.104257M  (2104257),  min  1.678384M  (1678384)
+
+DetailProfile(14fd80ca658747be-952f69158831957b):
+    Fragments:

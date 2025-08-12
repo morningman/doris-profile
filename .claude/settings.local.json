@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p src/components/FileUploader src/components/QuerySummary src/components/TreeView src/components/NodeDetails src/utils src/types src/hooks src/pages/ProfileAnalyzer)",
+      "Bash(yarn build)",
+      "Bash(node test-parser.js)",
+      "Bash(grep -n -A 5 \"Pipeline\" test-profile4.txt)",
+      "Bash(grep -n \"MergedProfile\\|Fragments:\" test-profile4.txt)",
+      "Bash(sed -n '460,470p' test-profile4.txt)",
+      "Bash(sed -n '80,90p' test-profile4.txt)",
+      "Bash(node debug-parser.js)",
+      "Bash(node run-parser.js test-profile4.txt --tree-json)",
+      "Bash(grep -n \"Execution Summary:\" test-profile4.txt)",
+      "Bash(grep -n \"Execution.*Summary\" test-profile4.txt)",
+      "Bash(sed -n '30,60p' test-profile4.txt)"
+    ],
+    "deny": []
+  }
+}
