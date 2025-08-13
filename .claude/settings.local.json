@@ -12,7 +12,10 @@
       "Bash(node run-parser.js test-profile4.txt --tree-json)",
       "Bash(grep -n \"Execution Summary:\" test-profile4.txt)",
       "Bash(grep -n \"Execution.*Summary\" test-profile4.txt)",
-      "Bash(sed -n '30,60p' test-profile4.txt)"
+      "Bash(sed -n '30,60p' test-profile4.txt)",
+      "Bash(mv test-new-format.js test-new-format.cjs)",
+      "Bash(node test-new-format.cjs)",
+      "Bash(./service.sh status)"
     ],
     "deny": []
   }

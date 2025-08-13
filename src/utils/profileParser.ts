@@ -48,6 +48,7 @@ export class ProfileParser {
     const lines = profileText.split('\n');
     let summaryStart = -1;
     let executionSummaryStart = -1;
+    let changedSessionVariablesStart = -1;
     let mergedProfileStart = -1;
     let detailProfileStart = -1;
 
@@ -57,6 +58,8 @@ export class ProfileParser {
         summaryStart = i;
       } else if (line === 'Execution Summary:' || line === 'Execution  Summary:') {
         executionSummaryStart = i;
+      } else if (line === 'ChangedSessionVariables:') {
+        changedSessionVariablesStart = i;
       } else if (line === 'MergedProfile:') {
         mergedProfileStart = i;
       } else if (line.startsWith('DetailProfile(')) {
@@ -66,7 +69,15 @@ export class ProfileParser {
     }
 
     const summaryEnd = executionSummaryStart > 0 ? executionSummaryStart : lines.length;
-    const executionSummaryEnd = mergedProfileStart > 0 ? mergedProfileStart : lines.length;
+    
+    // Execution Summary ends at ChangedSessionVariables or MergedProfile
+    let executionSummaryEnd = lines.length;
+    if (changedSessionVariablesStart > 0) {
+      executionSummaryEnd = changedSessionVariablesStart;
+    } else if (mergedProfileStart > 0) {
+      executionSummaryEnd = mergedProfileStart;
+    }
+    
     const mergedProfileEnd = detailProfileStart > 0 ? detailProfileStart : lines.length;
 
     return {
@@ -86,30 +97,30 @@ export class ProfileParser {
       const line = lines[i];
       const trimmedLine = line.trim();
 
-      if (trimmedLine.startsWith('-  Profile  ID:')) {
-        summary.profileId = this.extractValue(trimmedLine, 'Profile  ID:');
-      } else if (trimmedLine.startsWith('-  Task  Type:')) {
-        summary.taskType = this.extractValue(trimmedLine, 'Task  Type:');
-      } else if (trimmedLine.startsWith('-  Start  Time:')) {
-        summary.startTime = this.extractValue(trimmedLine, 'Start  Time:');
-      } else if (trimmedLine.startsWith('-  End  Time:')) {
-        summary.endTime = this.extractValue(trimmedLine, 'End  Time:');
-      } else if (trimmedLine.startsWith('-  Total:')) {
+      if (trimmedLine.startsWith('- Profile ID:')) {
+        summary.profileId = this.extractValue(trimmedLine, 'Profile ID:');
+      } else if (trimmedLine.startsWith('- Task Type:')) {
+        summary.taskType = this.extractValue(trimmedLine, 'Task Type:');
+      } else if (trimmedLine.startsWith('- Start Time:')) {
+        summary.startTime = this.extractValue(trimmedLine, 'Start Time:');
+      } else if (trimmedLine.startsWith('- End Time:')) {
+        summary.endTime = this.extractValue(trimmedLine, 'End Time:');
+      } else if (trimmedLine.startsWith('- Total:')) {
         summary.total = this.extractValue(trimmedLine, 'Total:');
-      } else if (trimmedLine.startsWith('-  Task  State:')) {
-        summary.taskState = this.extractValue(trimmedLine, 'Task  State:');
-      } else if (trimmedLine.startsWith('-  User:')) {
+      } else if (trimmedLine.startsWith('- Task State:')) {
+        summary.taskState = this.extractValue(trimmedLine, 'Task State:');
+      } else if (trimmedLine.startsWith('- User:')) {
         summary.user = this.extractValue(trimmedLine, 'User:');
-      } else if (trimmedLine.startsWith('-  Default  Catalog:')) {
-        summary.defaultCatalog = this.extractValue(trimmedLine, 'Default  Catalog:');
-      } else if (trimmedLine.startsWith('-  Default  Db:')) {
-        summary.defaultDb = this.extractValue(trimmedLine, 'Default  Db:');
-      } else if (trimmedLine.startsWith('-  Sql  Statement:')) {
+      } else if (trimmedLine.startsWith('- Default Catalog:')) {
+        summary.defaultCatalog = this.extractValue(trimmedLine, 'Default Catalog:');
+      } else if (trimmedLine.startsWith('- Default Db:')) {
+        summary.defaultDb = this.extractValue(trimmedLine, 'Default Db:');
+      } else if (trimmedLine.startsWith('- Sql Statement:')) {
         inSqlStatement = true;
-        sqlStatement = this.extractValue(trimmedLine, 'Sql  Statement:');
-      } else if (trimmedLine.startsWith('-  Distributed  Plan:')) {
+        sqlStatement = this.extractValue(trimmedLine, 'Sql Statement:');
+      } else if (trimmedLine.startsWith('- Distributed Plan:')) {
         inSqlStatement = false;
-        summary.distributedPlan = this.extractValue(trimmedLine, 'Distributed  Plan:');
+        summary.distributedPlan = this.extractValue(trimmedLine, 'Distributed Plan:');
       } else if (inSqlStatement) {
         sqlStatement += ' ' + trimmedLine;
       }
@@ -127,8 +138,8 @@ export class ProfileParser {
       const line = lines[i];
       const trimmedLine = line.trim();
 
-      // 解析所有层级的项目：-  项目名称: 值
-      if (trimmedLine.startsWith('-  ')) {
+      // 解析所有层级的项目：- 项目名称: 值
+      if (trimmedLine.startsWith('- ')) {
         const match = trimmedLine.match(/^-\s+([^:]+):\s*(.*)$/);
         if (match) {
           const key = match[1].trim().replace(/\s+/g, '');
@@ -199,7 +210,7 @@ export class ProfileParser {
         inCommonCounters = false;
         inCustomCounters = false;
         inPlanInfo = false;
-      } else if (trimmedLine.startsWith('-  WaitWorkerTime:')) {
+      } else if (trimmedLine.startsWith('- WaitWorkerTime:')) {
         if (currentPipeline) {
           currentPipeline.waitWorkerTime = this.extractValue(trimmedLine, 'WaitWorkerTime:');
         }
@@ -213,7 +224,7 @@ export class ProfileParser {
         inCommonCounters = false;
         inCustomCounters = false;
         inPlanInfo = false;
-      } else if (trimmedLine === '-  PlanInfo' || trimmedLine.startsWith('-  PlanInfo') ||
+      } else if (trimmedLine === '- PlanInfo' || trimmedLine.startsWith('- PlanInfo') ||
                line.match(/^\s+- PlanInfo\s*$/)) {
         inPlanInfo = true;
         inCommonCounters = false;
@@ -226,7 +237,7 @@ export class ProfileParser {
         inCustomCounters = true;
         inCommonCounters = false;
         inPlanInfo = false;
-      } else if (trimmedLine.startsWith('-  ') && currentOperator) {
+      } else if (trimmedLine.startsWith('- ') && currentOperator) {
         if (inPlanInfo) {
           this.parsePlanInfoItem(currentOperator, trimmedLine);
         } else if (inCommonCounters) {
@@ -234,7 +245,7 @@ export class ProfileParser {
         } else if (inCustomCounters) {
           this.parseCounterItem(currentOperator, trimmedLine, 'custom');
         }
-      } else if (line.match(/^\s{20,}-\s+/) && currentOperator) {
+      } else if (line.match(/^\s{10,}-\s+/) && currentOperator) {
         const nestedTrimmedLine = line.trim();
         if (inCommonCounters) {
           this.parseCounterItem(currentOperator, nestedTrimmedLine, 'common');

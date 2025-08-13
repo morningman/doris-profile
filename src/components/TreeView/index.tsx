@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Typography, Button, message, Space, Divider } from 'antd';
+import { Card, Typography, Button, message, Space } from 'antd';
 import { CopyOutlined, CheckOutlined } from '@ant-design/icons';
 import type { DorisQueryProfile, TreeNode } from '../../types/profile';
 
