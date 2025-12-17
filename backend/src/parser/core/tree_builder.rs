@@ -216,12 +216,13 @@ impl TreeBuilder {
                 };
                 
                 if let Some(fid) = &node.fragment_id {
-                    // Find SINK with matching name in a different pipeline
+                    // Find SINK with matching name AND plan_node_id in a different pipeline
                     for (other_idx, other_node) in nodes.iter().enumerate() {
                         if other_idx != idx 
                             && other_node.fragment_id.as_ref() == Some(fid)
                             && other_node.pipeline_id != node.pipeline_id
-                            && other_node.operator_name == expected_sink_name {
+                            && other_node.operator_name == expected_sink_name
+                            && other_node.plan_node_id == node.plan_node_id {  // 关键修复：检查 plan_node_id 匹配
                             // Record connection: non-SINK -> SINK
                             sink_connections.push((idx, other_node.id.clone()));
                             break; // Only connect to one SINK

@@ -625,7 +625,9 @@ export default {
 
       this.maxTime = Math.max(...visibleNodes.map(n => this.getNodeTime(n)), 1);
 
-      const LEVEL_HEIGHT = 180, LEVEL_WIDTH = 240;
+      // 大幅增加间距，让树形结构更展开
+      const LEVEL_HEIGHT = 200;  // 垂直间距
+      const LEVEL_WIDTH = 400;   // 横向间距（显著增加）
       let maxDepth = Math.max(...visibleNodes.map(n => n.depth || 0));
       this.svgHeight = Math.max(800, (maxDepth + 1) * LEVEL_HEIGHT + 150);
 
