@@ -3,6 +3,12 @@
     <!-- View Mode Toggle -->
     <div class="view-controls">
       <button 
+        :class="['view-btn', { active: viewMode === 'graph' }]"
+        @click="viewMode = 'graph'"
+      >
+        📊 Graph View
+      </button>
+      <button 
         :class="['view-btn', { active: viewMode === 'table' }]"
         @click="viewMode = 'table'"
       >
@@ -25,6 +31,124 @@
 
     <div v-if="!hasNodes" class="no-data">
       <p>No execution tree data available</p>
+    </div>
+    
+    <!-- Graph View (SVG DAG Visualization) -->
+    <div v-else-if="viewMode === 'graph'" class="graph-view-container">
+      <!-- 工具栏 -->
+      <div class="dag-toolbar">
+        <button @click="zoomIn" class="toolbar-btn" title="放大">
+          <i class="fas fa-search-plus"></i>
+        </button>
+        <button @click="zoomOut" class="toolbar-btn" title="缩小">
+          <i class="fas fa-search-minus"></i>
+        </button>
+        <button @click="fitToScreen" class="toolbar-btn" title="适应屏幕">
+          <i class="fas fa-expand"></i>
+        </button>
+        <button @click="resetView" class="toolbar-btn" title="重置视图">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+
+      <!-- SVG 画布 -->
+      <div class="svg-wrapper">
+        <svg
+          ref="svgCanvas"
+          class="dag-svg"
+          :width="svgWidth"
+          :height="svgHeight"
+          @wheel.prevent="handleWheel"
+          @mousedown="startPan"
+          @mousemove="doPan"
+          @mouseup="endPan"
+          @mouseleave="endPan"
+        >
+          <defs>
+            <marker id="arrow" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+              <polygon points="0 0, 5 3, 0 6" fill="#999" />
+            </marker>
+            <marker id="arrow-hotspot" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+              <polygon points="0 0, 5 3, 0 6" fill="#E57373" />
+            </marker>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f5f5f5" stroke-width="0.5" />
+            </pattern>
+          </defs>
+
+          <rect width="100%" height="100%" fill="url(#grid)" @click="deselectNode" />
+
+          <g :transform="`translate(${panX}, ${panY}) scale(${zoom})`">
+            <!-- 连接线 -->
+            <g class="links-group">
+              <path
+                v-for="link in links"
+                :key="`link-${link.id}`"
+                :d="link.path"
+                class="connection-line"
+                :class="{ 'hotspot-link': link.isHotspot }"
+                :marker-end="`url(#${link.isHotspot ? 'arrow-hotspot' : 'arrow'})`"
+                :style="{ strokeWidth: link.strokeWidth + 'px' }"
+              />
+              <text
+                v-for="link in links"
+                :key="`label-${link.id}`"
+                :x="link.labelX"
+                :y="link.labelY"
+                class="link-label"
+              >
+                {{ link.label }}
+              </text>
+            </g>
+
+            <!-- 节点 -->
+            <g class="nodes-group">
+              <g
+                v-for="node in renderedNodes"
+                :key="node.id"
+                :transform="`translate(${node.x}, ${node.y})`"
+                class="node-group"
+                :class="{ selected: selectedNodeId === node.id, hotspot: node.is_hotspot }"
+                @click.stop="selectNode(node)"
+              >
+                <rect class="node-header" :class="`header-${getNodeColorClass(node)}`" :width="NODE_WIDTH" :height="NODE_HEADER_HEIGHT" rx="3" />
+                <rect class="node-body" :width="NODE_WIDTH" :y="NODE_HEADER_HEIGHT" :height="NODE_BODY_HEIGHT" />
+                <rect class="progress-bg" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="NODE_WIDTH" :height="NODE_PROGRESS_HEIGHT" />
+                <rect v-if="node.time_percentage" class="progress-fill" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
+                <rect class="node-border" :width="NODE_WIDTH" :height="NODE_HEIGHT" rx="3" />
+                <text class="node-title" x="10" :y="19">{{ formatOperatorName(node.operator_name) }}</text>
+                <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 15">plan_node_id={{ node.plan_node_id || 'N/A' }}</text>
+                <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 32">耗时: {{ formatGraphTime(node) }}</text>
+                <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 32" text-anchor="end">{{ formatPct(node.time_percentage) }}</text>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- 节点详情面板 -->
+      <transition name="slide">
+        <div v-if="selectedNode" class="detail-panel">
+          <div class="detail-header">
+            <h3>{{ selectedNode.operator_name }}</h3>
+            <button @click="deselectNode" class="close-btn"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="detail-content">
+            <div class="detail-section">
+              <h4>基本信息</h4>
+              <div class="detail-item"><span class="label">Plan Node ID:</span><span class="value">{{ selectedNode.plan_node_id }}</span></div>
+              <div class="detail-item"><span class="label">Fragment:</span><span class="value">{{ selectedNode.fragment_id }}</span></div>
+              <div class="detail-item"><span class="label">Pipeline:</span><span class="value">{{ selectedNode.pipeline_id }}</span></div>
+            </div>
+            <div class="detail-section">
+              <h4>性能指标</h4>
+              <div class="detail-item"><span class="label">执行时间:</span><span class="value">{{ formatGraphTime(selectedNode) }}</span></div>
+              <div class="detail-item"><span class="label">时间占比:</span><span class="value">{{ formatPct(selectedNode.time_percentage) }}</span></div>
+              <div class="detail-item"><span class="label">处理行数:</span><span class="value">{{ formatNumber(selectedNode.metrics?.rows_returned) }}</span></div>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
     
     <!-- Table View -->
@@ -56,7 +180,7 @@
       </div>
     </div>
 
-    <!-- Fragment Tree View (showing fragment hierarchy) -->
+    <!-- Fragment Tree View -->
     <div v-else-if="viewMode === 'tree'" class="tree-view">
       <div class="tree-legend">
         <span class="legend-item"><span class="dot" style="background:#e74c3c"></span> Hotspot (&gt;30%)</span>
@@ -76,14 +200,12 @@
       </div>
     </div>
 
-    <!-- Pipeline View (flat view by fragment) -->
+    <!-- Pipeline View -->
     <div v-else-if="viewMode === 'pipeline'" class="pipeline-view">
       <div v-for="fragId in fragmentIds" :key="fragId" class="fragment-section">
         <div class="fragment-title">
           <span class="frag-icon">📁</span> {{ fragId }}
-          <span class="frag-stats">
-            {{ getFragmentStats(fragId) }}
-          </span>
+          <span class="frag-stats">{{ getFragmentStats(fragId) }}</span>
         </div>
         <div class="pipelines-container">
           <div v-for="pipeId in getPipelineIds(fragId)" :key="pipeId" class="pipeline-section">
@@ -96,7 +218,7 @@
               >
                 <span class="operator-dot" :style="{ background: getNodeColor(node) }"></span>
                 <span class="op-name">{{ node.operator_name }}</span>
-                <span v-if="node.time_percentage > 1" class="op-pct">{{ node.time_percentage.toFixed(1) }}%</span>
+                <span v-if="node.time_percentage > 1" class="op-pct">{{ formatPct(node.time_percentage) }}</span>
                 <span class="op-time">{{ node.metrics?.operator_total_time_raw || '' }}</span>
               </div>
             </div>
@@ -116,615 +238,797 @@ const FragmentTreeNode = defineComponent({
   props: ['fragment', 'fragmentTree', 'nodesByFragment', 'getNodeColor', 'depth'],
   setup(props) {
     const isExpanded = ref(true);
-    
-    const toggle = () => {
-      isExpanded.value = !isExpanded.value;
-    };
-    
-    const children = computed(() => {
-      return props.fragmentTree[props.fragment] || [];
-    });
-    
-    const nodes = computed(() => {
-      return props.nodesByFragment[props.fragment] || [];
-    });
-    
-    const totalTime = computed(() => {
-      let total = 0;
-      nodes.value.forEach(n => {
-        if (n.metrics?.operator_total_time) {
-          total += n.metrics.operator_total_time;
-        }
-      });
-      if (total > 1000000000) return (total / 1000000000).toFixed(2) + 's';
-      if (total > 1000000) return (total / 1000000).toFixed(2) + 'ms';
-      if (total > 1000) return (total / 1000).toFixed(2) + 'us';
-      return total + 'ns';
-    });
-    
-    const hotspotNodes = computed(() => {
-      return nodes.value.filter(n => n.is_hotspot);
-    });
+    const toggle = () => { isExpanded.value = !isExpanded.value; };
+    const children = computed(() => props.fragmentTree[props.fragment] || []);
+    const nodes = computed(() => props.nodesByFragment[props.fragment] || []);
     
     return () => {
       const indent = props.depth * 24;
-      
-      return h('div', { class: 'tree-fragment', style: { marginLeft: indent + 'px' } }, [
-        // Fragment header
+      return h('div', { class: 'fragment-node', style: { marginLeft: `${indent}px` } }, [
         h('div', { 
-          class: ['fragment-header', { 'has-hotspot': hotspotNodes.value.length > 0 }],
+          class: 'fragment-header',
           onClick: toggle 
         }, [
-          h('span', { class: 'expand-icon' }, isExpanded.value ? '▼' : '▶'),
-          h('span', { class: 'frag-name' }, props.fragment),
-          h('span', { class: 'frag-time' }, totalTime.value),
-          hotspotNodes.value.length > 0 && h('span', { class: 'hotspot-badge' }, 
-            `🔥 ${hotspotNodes.value.length} hotspot${hotspotNodes.value.length > 1 ? 's' : ''}`
-          ),
+          h('span', { class: 'toggle-icon' }, isExpanded.value ? '▼' : '▶'),
+          h('span', { class: 'fragment-icon' }, '📁'),
+          h('span', { class: 'fragment-name' }, props.fragment),
+          h('span', { class: 'fragment-node-count' }, `${nodes.value.length} nodes`)
         ]),
-        
-        // Fragment content (when expanded)
-        isExpanded.value && h('div', { class: 'fragment-content' }, [
-          // Operators in this fragment
-          h('div', { class: 'operators-block' }, 
-            nodes.value.map(node => 
-              h('div', { 
-                class: ['tree-operator', { hotspot: node.is_hotspot }],
-                key: node.id 
-              }, [
-                h('span', { 
-                  class: 'operator-dot', 
-                  style: { background: props.getNodeColor(node) } 
-                }),
-                h('span', { class: 'op-name' }, node.operator_name),
-                node.time_percentage > 0.1 && h('span', { 
-                  class: ['op-pct', node.time_percentage > 30 ? 'critical' : node.time_percentage > 15 ? 'high' : ''] 
-                }, `${node.time_percentage.toFixed(1)}%`),
-                node.metrics?.operator_total_time_raw && h('span', { class: 'op-time' }, 
-                  node.metrics.operator_total_time_raw
-                ),
-              ])
-            )
-          ),
-          
-          // Child fragments
-          children.value.length > 0 && h('div', { class: 'children-block' }, 
-            children.value.map(childFrag => 
-              h(FragmentTreeNode, {
-                key: childFrag,
-                fragment: childFrag,
-                fragmentTree: props.fragmentTree,
-                nodesByFragment: props.nodesByFragment,
-                getNodeColor: props.getNodeColor,
-                depth: props.depth + 1,
-              })
-            )
-          ),
-        ]),
+        isExpanded.value && nodes.value.length > 0 && h('div', { class: 'fragment-nodes' },
+          nodes.value.map(node => h('div', { 
+            class: ['node-item', { hotspot: node.is_hotspot }],
+            key: node.id 
+          }, [
+            h('span', { class: 'node-dot', style: { background: props.getNodeColor(node) } }),
+            h('span', { class: 'node-op-name' }, node.operator_name),
+            node.time_percentage > 1 && h('span', { class: 'node-pct' }, `${node.time_percentage.toFixed(1)}%`)
+          ]))
+        ),
+        isExpanded.value && children.value.length > 0 && h('div', { class: 'fragment-children' },
+          children.value.map(childFrag => h(FragmentTreeNode, {
+            key: childFrag,
+            fragment: childFrag,
+            fragmentTree: props.fragmentTree,
+            nodesByFragment: props.nodesByFragment,
+            getNodeColor: props.getNodeColor,
+            depth: props.depth + 1
+          }))
+        )
       ]);
     };
   }
 });
 
 export default {
-  name: "DAGVisualization",
+  name: 'DAGVisualization',
   components: { FragmentTreeNode },
   props: {
-    tree: {
-      type: Object,
-      default: null,
-    },
+    tree: { type: Object, required: true }
   },
-  setup(props) {
-    const viewMode = ref('tree');
-
-    const hasNodes = computed(() => props.tree?.nodes?.length > 0);
-    const nodeCount = computed(() => props.tree?.nodes?.length || 0);
-    const fragmentCount = computed(() => fragmentIds.value.length);
-
-    const fragmentIds = computed(() => {
-      if (!props.tree?.nodes) return [];
-      const ids = new Set();
-      props.tree.nodes.forEach(n => ids.add(n.fragment_id || 'Unknown'));
-      return Array.from(ids).sort();
-    });
-
-    const nodesByFragment = computed(() => {
-      if (!props.tree?.nodes) return {};
-      const result = {};
-      props.tree.nodes.forEach(node => {
-        const fragId = node.fragment_id || 'Unknown';
-        if (!result[fragId]) result[fragId] = [];
-        result[fragId].push(node);
+  data() {
+    return {
+      viewMode: 'graph', // Default to graph view
+      
+      // Graph view data
+      NODE_WIDTH: 200,
+      NODE_HEIGHT: 90,
+      NODE_HEADER_HEIGHT: 28,
+      NODE_BODY_HEIGHT: 56,
+      NODE_PROGRESS_HEIGHT: 6,
+      zoom: 1,
+      panX: 50,
+      panY: 50,
+      isPanning: false,
+      panStartX: 0,
+      panStartY: 0,
+      svgWidth: 1200,
+      svgHeight: 800,
+      renderedNodes: [],
+      links: [],
+      selectedNodeId: null,
+      selectedNode: null,
+      maxTime: 0,
+    };
+  },
+  computed: {
+    hasNodes() {
+      return this.tree?.nodes && this.tree.nodes.length > 0;
+    },
+    nodeCount() {
+      return this.tree?.nodes?.length || 0;
+    },
+    fragmentCount() {
+      if (!this.hasNodes) return 0;
+      const fragments = new Set(this.tree.nodes.map(n => n.fragment_id).filter(Boolean));
+      return fragments.size;
+    },
+    sortedNodes() {
+      if (!this.hasNodes) return [];
+      return [...this.tree.nodes].sort((a, b) => (b.time_percentage || 0) - (a.time_percentage || 0));
+    },
+    fragmentIds() {
+      if (!this.hasNodes) return [];
+      const ids = new Set(this.tree.nodes.map(n => n.fragment_id).filter(Boolean));
+      return Array.from(ids).sort((a, b) => {
+        const numA = parseInt(a.replace('Fragment ', ''));
+        const numB = parseInt(b.replace('Fragment ', ''));
+        return numA - numB;
       });
-      return result;
-    });
-
-    // Build fragment tree based on DATA_STREAM_SINK -> EXCHANGE relationships
-    const fragmentTree = computed(() => {
-      if (!props.tree?.nodes) return {};
-      
-      const tree = {}; // parent -> [children]
-      const childToParent = {}; // child -> parent
-      
-      // Find all EXCHANGE operators and their fragment locations
-      const exchangeToFragment = {}; // exchange_id -> fragment_id
-      props.tree.nodes.forEach(node => {
-        if (node.operator_name?.includes('EXCHANGE_OPERATOR') && 
-            !node.operator_name?.includes('LOCAL_EXCHANGE') &&
-            !node.operator_name?.includes('SINK')) {
-          const id = node.plan_node_id;
-          if (id !== null && id !== undefined) {
-            exchangeToFragment[id] = node.fragment_id;
-          }
+    },
+    nodesByFragment() {
+      const map = {};
+      if (!this.hasNodes) return map;
+      this.tree.nodes.forEach(node => {
+        const fid = node.fragment_id;
+        if (fid) {
+          if (!map[fid]) map[fid] = [];
+          map[fid].push(node);
         }
       });
+      return map;
+    },
+    fragmentTree() {
+      const tree = {};
+      if (!this.hasNodes) return tree;
       
-      // Find all DATA_STREAM_SINK operators and link to their target EXCHANGE
-      props.tree.nodes.forEach(node => {
-        if (node.operator_name?.includes('DATA_STREAM_SINK')) {
-          const destId = node.unique_metrics?.dest_id;
-          if (destId) {
-            const destIdNum = parseInt(destId);
-            const parentFrag = exchangeToFragment[destIdNum];
-            const childFrag = node.fragment_id;
-            
-            if (parentFrag && childFrag && parentFrag !== childFrag) {
-              if (!tree[parentFrag]) tree[parentFrag] = [];
-              if (!tree[parentFrag].includes(childFrag)) {
-                tree[parentFrag].push(childFrag);
+      // Build fragment parent-child relationships from DATA_STREAM_SINK -> EXCHANGE connections
+      this.tree.nodes.forEach(node => {
+        if (node.operator_name && node.operator_name.includes('DATA_STREAM_SINK')) {
+          // This node sends data, find its EXCHANGE children
+          if (node.children && node.children.length > 0) {
+            node.children.forEach(childId => {
+              const child = this.tree.nodes.find(n => n.id === childId);
+              if (child && child.operator_name && child.operator_name.includes('EXCHANGE') && !child.operator_name.includes('LOCAL')) {
+                // Child is in different fragment
+                const parentFrag = node.fragment_id;
+                const childFrag = child.fragment_id;
+                if (parentFrag && childFrag && parentFrag !== childFrag) {
+                  if (!tree[parentFrag]) tree[parentFrag] = [];
+                  if (!tree[parentFrag].includes(childFrag)) {
+                    tree[parentFrag].push(childFrag);
+                  }
+                }
               }
-              childToParent[childFrag] = parentFrag;
-            }
+            });
           }
         }
       });
-      
-      // Sort children
-      Object.keys(tree).forEach(k => {
-        tree[k].sort();
-      });
-      
       return tree;
-    });
-
-    // Find root fragment (fragment with no parent)
-    const rootFragment = computed(() => {
-      const allFragments = new Set(fragmentIds.value);
+    },
+    rootFragment() {
+      // Find fragment with no parent
+      const allFragments = this.fragmentIds;
       const childFragments = new Set();
-      
-      Object.values(fragmentTree.value).forEach(children => {
-        children.forEach(c => childFragments.add(c));
+      Object.values(this.fragmentTree).forEach(children => {
+        children.forEach(child => childFragments.add(child));
       });
-      
-      for (const frag of allFragments) {
-        if (!childFragments.has(frag)) {
-          return frag;
+      const root = allFragments.find(f => !childFragments.has(f));
+      return root || (allFragments.length > 0 ? allFragments[0] : null);
+    }
+  },
+  watch: {
+    tree: {
+      handler() {
+        if (this.viewMode === 'graph') {
+          this.$nextTick(() => this.renderDAG());
         }
+      },
+      deep: true,
+      immediate: true
+    },
+    viewMode(newMode) {
+      if (newMode === 'graph') {
+        this.$nextTick(() => this.renderDAG());
       }
+    }
+  },
+  mounted() {
+    if (this.viewMode === 'graph') {
+      this.renderDAG();
+    }
+  },
+  methods: {
+    // Graph view methods
+    renderDAG() {
+      if (!this.hasNodes) {
+        this.renderedNodes = [];
+        this.links = [];
+        return;
+      }
+
+      const nodeMap = new Map();
+      const nodesByDepth = new Map();
       
-      return fragmentIds.value[0] || 'Unknown';
-    });
-
-    const sortedNodes = computed(() => {
-      if (!props.tree?.nodes) return [];
-      return [...props.tree.nodes].sort((a, b) => {
-        const fragCmp = (a.fragment_id || '').localeCompare(b.fragment_id || '');
-        if (fragCmp !== 0) return fragCmp;
-        return (a.pipeline_id || '').localeCompare(b.pipeline_id || '');
+      this.tree.nodes.forEach(node => {
+        nodeMap.set(node.id, node);
+        const depth = node.depth || 0;
+        if (!nodesByDepth.has(depth)) nodesByDepth.set(depth, []);
+        nodesByDepth.get(depth).push(node);
       });
-    });
 
-    const getPipelineIds = (fragId) => {
-      if (!props.tree?.nodes) return [];
-      const ids = new Set();
-      props.tree.nodes.forEach(n => {
-        if ((n.fragment_id || 'Unknown') === fragId) {
-          ids.add(n.pipeline_id || 'Unknown');
-        }
+      this.maxTime = Math.max(...this.tree.nodes.map(n => this.getNodeTime(n)), 1);
+
+      const LEVEL_HEIGHT = 180, LEVEL_WIDTH = 240;
+      let maxDepth = Math.max(...this.tree.nodes.map(n => n.depth || 0));
+      this.svgHeight = Math.max(800, (maxDepth + 1) * LEVEL_HEIGHT + 150);
+
+      this.renderedNodes = this.tree.nodes.map(node => {
+        const depth = node.depth || 0;
+        const levelNodes = nodesByDepth.get(depth) || [];
+        const indexInLevel = levelNodes.indexOf(node);
+        const y = depth * LEVEL_HEIGHT + 80;
+        const totalWidth = (levelNodes.length - 1) * LEVEL_WIDTH;
+        const x = this.svgWidth / 2 - totalWidth / 2 + indexInLevel * LEVEL_WIDTH;
+        return { ...node, x, y };
       });
-      return Array.from(ids).sort();
-    };
 
-    const getNodesForPipeline = (fragId, pipeId) => {
-      if (!props.tree?.nodes) return [];
-      return props.tree.nodes.filter(n => 
-        (n.fragment_id || 'Unknown') === fragId && 
-        (n.pipeline_id || 'Unknown') === pipeId
-      );
-    };
-
-    const getFragmentStats = (fragId) => {
-      const nodes = nodesByFragment.value[fragId] || [];
-      const hotspots = nodes.filter(n => n.is_hotspot).length;
-      let totalTime = 0;
-      nodes.forEach(n => {
-        if (n.metrics?.operator_total_time) totalTime += n.metrics.operator_total_time;
+      this.links = [];
+      this.tree.nodes.forEach(sourceNode => {
+        if (!sourceNode.children) return;
+        sourceNode.children.forEach((childId, idx) => {
+          const targetNode = nodeMap.get(childId);
+          if (!targetNode) return;
+          const source = this.renderedNodes.find(n => n.id === sourceNode.id);
+          const target = this.renderedNodes.find(n => n.id === targetNode.id);
+          if (source && target) {
+            const startX = target.x + this.NODE_WIDTH / 2;
+            const startY = target.y;
+            const endX = source.x + this.NODE_WIDTH / 2;
+            const endY = source.y + this.NODE_HEIGHT + 8;
+            const controlY = (startY + endY) / 2;
+            const path = `M ${startX} ${startY} C ${startX} ${controlY}, ${endX} ${controlY}, ${endX} ${endY}`;
+            const rows = this.getNodeRows(targetNode);
+            let label = `Rows: ${this.formatRowsSimple(rows)}`;
+            if (sourceNode.operator_name && sourceNode.operator_name.includes('JOIN')) {
+              label += idx === 0 ? ' (PROBE)' : ' (BUILD)';
+            }
+            this.links.push({
+              id: `${source.id}-${target.id}`,
+              path,
+              labelX: (startX + endX) / 2,
+              labelY: controlY - 8,
+              label,
+              isHotspot: source.is_hotspot || target.is_hotspot,
+              strokeWidth: Math.min(5, Math.max(1, Math.log10(rows + 1) / 2))
+            });
+          }
+        });
       });
-      
-      let timeStr = '';
-      if (totalTime > 1000000000) timeStr = (totalTime / 1000000000).toFixed(1) + 's';
-      else if (totalTime > 1000000) timeStr = (totalTime / 1000000).toFixed(1) + 'ms';
-      else if (totalTime > 1000) timeStr = (totalTime / 1000).toFixed(1) + 'us';
-      else timeStr = totalTime + 'ns';
-      
-      return `${nodes.length} ops, ${timeStr}${hotspots ? `, 🔥${hotspots}` : ''}`;
-    };
-
-    const getShortId = (id) => {
+    },
+    getNodeTime(node) {
+      if (!node?.metrics) return 0;
+      const time = node.metrics.operator_total_time;
+      if (typeof time === 'number') return time;
+      if (typeof time === 'object' && time !== null) {
+        return (time.secs || 0) * 1_000_000_000 + (time.nanos || 0);
+      }
+      return 0;
+    },
+    getNodeRows(node) {
+      return node?.metrics?.rows_returned || 0;
+    },
+    formatRowsSimple(rows) {
+      if (rows === 0) return '0';
+      if (rows < 1000) return String(rows);
+      if (rows < 1_000_000) return `${(rows / 1000).toFixed(1)}K`;
+      if (rows < 1_000_000_000) return `${(rows / 1_000_000).toFixed(1)}M`;
+      return `${(rows / 1_000_000_000).toFixed(1)}B`;
+    },
+    formatOperatorName(name) {
+      if (!name) return 'UNKNOWN';
+      return name.replace(/_OPERATOR$/, '').replace(/_/g, ' ');
+    },
+    formatGraphTime(node) {
+      if (!node?.metrics) return 'N/A';
+      const time = this.getNodeTime(node);
+      if (time === 0) return '0ns';
+      const us = time / 1000;
+      if (us < 1000) return `${us.toFixed(2)}us`;
+      const ms = us / 1000;
+      if (ms < 1000) return `${ms.toFixed(2)}ms`;
+      return `${(ms / 1000).toFixed(2)}s`;
+    },
+    getNodeColorClass(node) {
+      if (!node) return 'default';
+      const name = node.operator_name || '';
+      if (name.includes('SCAN')) return 'scan';
+      if (name.includes('JOIN')) return 'join';
+      if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return 'aggregate';
+      if (name.includes('EXCHANGE')) return 'exchange';
+      if (name.includes('SORT')) return 'sort';
+      if (name.includes('PROJECT')) return 'project';
+      return 'default';
+    },
+    getProgressWidth(node) {
+      if (!node?.time_percentage) return 0;
+      return (Math.min(100, node.time_percentage) / 100) * this.NODE_WIDTH;
+    },
+    getProgressColor(node) {
+      const pct = node?.time_percentage || 0;
+      if (pct > 30) return '#E57373';
+      if (pct > 10) return '#FFB74D';
+      return '#81C784';
+    },
+    selectNode(node) {
+      this.selectedNodeId = node.id;
+      this.selectedNode = node;
+    },
+    deselectNode() {
+      this.selectedNodeId = null;
+      this.selectedNode = null;
+    },
+    zoomIn() { this.zoom = Math.min(3, this.zoom * 1.2); },
+    zoomOut() { this.zoom = Math.max(0.3, this.zoom / 1.2); },
+    fitToScreen() { this.zoom = 0.8; this.panX = 50; this.panY = 50; },
+    resetView() { this.zoom = 1; this.panX = 50; this.panY = 50; this.deselectNode(); },
+    handleWheel(event) {
+      const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+      this.zoom = Math.min(3, Math.max(0.3, this.zoom * zoomFactor));
+    },
+    startPan(event) {
+      this.isPanning = true;
+      this.panStartX = event.clientX - this.panX;
+      this.panStartY = event.clientY - this.panY;
+    },
+    doPan(event) {
+      if (!this.isPanning) return;
+      this.panX = event.clientX - this.panStartX;
+      this.panY = event.clientY - this.panStartY;
+    },
+    endPan() { this.isPanning = false; },
+    
+    // Common methods
+    formatPct(pct) {
+      if (pct === null || pct === undefined) return '0.00%';
+      return `${pct.toFixed(2)}%`;
+    },
+    formatNumber(num) {
+      if (!num) return '0';
+      return num.toLocaleString();
+    },
+    getShortId(id) {
       if (!id) return '-';
       return id.replace('Fragment ', 'F').replace('Pipeline ', 'P');
-    };
-
-    const formatNumber = (num) => {
-      if (num === null || num === undefined) return "-";
-      return num.toLocaleString();
-    };
-
-    const formatPct = (pct) => {
-      if (pct === null || pct === undefined || pct === 0) return "-";
-      return pct.toFixed(1) + '%';
-    };
-
-    const getPctClass = (node) => {
-      const pct = node.time_percentage || 0;
-      if (pct >= 30) return 'pct-critical';
-      if (pct >= 15) return 'pct-high';
-      if (pct >= 5) return 'pct-medium';
+    },
+    getNodeColor(node) {
+      if (!node) return '#999';
+      if (node.is_hotspot) return '#e74c3c';
+      if (node.time_percentage > 15) return '#f39c12';
+      const name = node.operator_name || '';
+      if (name.includes('SCAN')) return '#9b59b6';
+      if (name.includes('JOIN')) return '#e67e22';
+      if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return '#1abc9c';
+      if (name.includes('EXCHANGE')) return '#3498db';
+      return '#95a5a6';
+    },
+    getPctClass(node) {
+      if (!node.time_percentage) return '';
+      if (node.time_percentage > 30) return 'high-pct';
+      if (node.time_percentage > 15) return 'medium-pct';
       return '';
-    };
-
-    const getNodeColor = (node) => {
-      if (node.is_most_consuming) return "#e74c3c";
-      if (node.is_second_most_consuming) return "#f39c12";
-      if (node.is_hotspot) {
-        switch (node.hotspot_severity) {
-          case "Critical": return "#e74c3c";
-          case "High": return "#f39c12";
-          case "Medium": return "#3498db";
-          default: return "#27ae60";
-        }
-      }
-      
-      const name = (node.operator_name || '').toUpperCase();
-      if (name.includes("SCAN")) return "#9b59b6";
-      if (name.includes("JOIN")) return "#e67e22";
-      if (name.includes("AGGREGATE") || name.includes("AGGREGATION")) return "#1abc9c";
-      if (name.includes("EXCHANGE") && !name.includes("LOCAL")) return "#34495e";
-      if (name.includes("SORT")) return "#16a085";
-      if (name.includes("SINK")) return "#95a5a6";
-      
-      return "#3498db";
-    };
-
-    return {
-      viewMode,
-      hasNodes,
-      nodeCount,
-      fragmentCount,
-      fragmentIds,
-      nodesByFragment,
-      fragmentTree,
-      rootFragment,
-      sortedNodes,
-      getPipelineIds,
-      getNodesForPipeline,
-      getFragmentStats,
-      getShortId,
-      formatNumber,
-      formatPct,
-      getPctClass,
-      getNodeColor,
-    };
-  },
+    },
+    getFragmentStats(fragId) {
+      const nodes = this.nodesByFragment[fragId] || [];
+      return `${nodes.length} operators`;
+    },
+    getPipelineIds(fragId) {
+      const nodes = this.nodesByFragment[fragId] || [];
+      const ids = new Set(nodes.map(n => n.pipeline_id).filter(Boolean));
+      return Array.from(ids).sort((a, b) => {
+        const numA = parseInt(a.replace('Pipeline ', ''));
+        const numB = parseInt(b.replace('Pipeline ', ''));
+        return numA - numB;
+      });
+    },
+    getNodesForPipeline(fragId, pipeId) {
+      return (this.nodesByFragment[fragId] || []).filter(n => n.pipeline_id === pipeId);
+    }
+  }
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .dag-visualization {
   width: 100%;
+  min-height: 600px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .view-controls {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 10px;
-  background: #f0f2f5;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
   align-items: center;
-  flex-wrap: wrap;
 }
 
 .view-btn {
-  padding: 6px 12px;
-  border: 1px solid #d9d9d9;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: white;
   border-radius: 6px;
-  background: #fff;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
+  transition: all 0.2s;
   
-  &:hover { border-color: #1890ff; color: #1890ff; }
-  &.active { background: #1890ff; color: #fff; border-color: #1890ff; }
+  &:hover {
+    background: #f5f5f5;
+  }
+  
+  &.active {
+    background: #2196F3;
+    color: white;
+    border-color: #2196F3;
+  }
 }
 
 .node-count {
   margin-left: auto;
-  font-size: 12px;
-  color: #8c8c8c;
+  color: #666;
+  font-size: 13px;
 }
 
 .no-data {
+  padding: 80px 20px;
   text-align: center;
-  padding: 60px;
-  color: #8c8c8c;
-  background: #fafafa;
-  border-radius: 8px;
+  color: #999;
 }
 
-/* Table View */
-.table-view {
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+/* Graph View Styles */
+.graph-view-container {
+  position: relative;
+  height: 800px;
+  background: white;
+}
+
+.dag-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+  background: white;
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #f5f5f5;
+    color: #333;
+  }
+}
+
+.svg-wrapper {
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  max-height: 500px;
+}
+
+.dag-svg {
+  display: block;
+  user-select: none;
+}
+
+.connection-line {
+  fill: none;
+  stroke: #BDBDBD;
+  transition: stroke 0.3s;
+  
+  &.hotspot-link {
+    stroke: #E57373;
+  }
+}
+
+.link-label {
+  font-size: 11px;
+  fill: #666;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.node-group {
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover .node-border { stroke: #2196F3; stroke-width: 2; }
+  &.selected .node-border { stroke: #1976D2; stroke-width: 2; }
+  &.hotspot .node-border { stroke: #E57373; stroke-width: 2; }
+}
+
+.node-header {
+  fill: #757575;
+  &.header-scan { fill: #FF9800; }
+  &.header-join { fill: #FF9800; }
+  &.header-aggregate { fill: #9C27B0; }
+  &.header-exchange { fill: #607D8B; }
+  &.header-sort { fill: #00BCD4; }
+  &.header-project { fill: #9E9E9E; }
+}
+
+.node-body { fill: white; }
+.progress-bg { fill: #F5F5F5; }
+.node-border { fill: none; stroke: #E0E0E0; stroke-width: 1; }
+.node-title { font-size: 13px; font-weight: 600; fill: white; pointer-events: none; }
+.node-detail { font-size: 11px; fill: #666; pointer-events: none; }
+.node-percentage { font-size: 12px; font-weight: 600; fill: #333; pointer-events: none; }
+
+.detail-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 320px;
+  height: 100%;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  overflow-y: auto;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+}
+
+.detail-header {
+  padding: 20px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  h3 { margin: 0; font-size: 14px; }
+  .close-btn { background: none; border: none; cursor: pointer; font-size: 16px; color: #666; }
+}
+
+.detail-content { padding: 20px; }
+.detail-section { margin-bottom: 20px; h4 { margin: 0 0 10px; font-size: 12px; color: #666; text-transform: uppercase; } }
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 12px;
+  
+  .label { color: #666; }
+  .value { color: #333; font-weight: 500; }
+}
+
+.slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
+
+/* Table View Styles */
+.table-view {
+  padding: 20px;
+  max-height: 800px;
   overflow-y: auto;
 }
 
+.table-header, .table-row {
+  display: grid;
+  grid-template-columns: 80px 80px 2fr 120px 80px 100px;
+  gap: 12px;
+  padding: 12px;
+  font-size: 13px;
+}
+
 .table-header {
-  display: flex;
-  background: #fafafa;
-  padding: 10px 12px;
   font-weight: 600;
-  font-size: 12px;
-  color: #595959;
-  border-bottom: 1px solid #e8e8e8;
+  color: #666;
+  border-bottom: 2px solid #e0e0e0;
   position: sticky;
   top: 0;
-  z-index: 1;
+  background: white;
+  z-index: 10;
 }
 
 .table-row {
-  display: flex;
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 12px;
+  border-bottom: 1px solid #f5f5f5;
   align-items: center;
+  transition: background 0.2s;
   
-  &:hover { background: #f5f5f5; }
-  &.hotspot { background: #fff1f0; &:hover { background: #ffccc7; } }
+  &:hover { background: #f8f9fa; }
+  &.hotspot { background: #ffebee; }
 }
-
-.col-fragment { width: 45px; flex-shrink: 0; color: #8c8c8c; }
-.col-pipeline { width: 45px; flex-shrink: 0; color: #8c8c8c; }
-.col-operator { flex: 1; display: flex; align-items: center; gap: 6px; font-weight: 500; }
-.col-time { width: 90px; flex-shrink: 0; text-align: right; color: #52c41a; font-size: 11px; }
-.col-pct { width: 55px; flex-shrink: 0; text-align: right; font-weight: 600; }
-.col-rows { width: 80px; flex-shrink: 0; text-align: right; color: #1890ff; font-size: 11px; }
 
 .operator-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
+  display: inline-block;
+  margin-right: 8px;
 }
 
-.pct-critical { color: #ff4d4f; }
-.pct-high { color: #fa8c16; }
-.pct-medium { color: #1890ff; }
+.col-pct {
+  &.high-pct { color: #e74c3c; font-weight: 600; }
+  &.medium-pct { color: #f39c12; font-weight: 600; }
+}
 
-/* Fragment Tree View */
+/* Tree View Styles */
 .tree-view {
-  background: #1a1a2e;
-  border-radius: 8px;
-  padding: 16px;
-  max-height: 600px;
+  padding: 20px;
+  max-height: 800px;
   overflow-y: auto;
-  color: #e0e0e0;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
 }
 
 .tree-legend {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #333;
-  font-size: 11px;
-  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: #888;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
 }
 
 .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.fragment-node {
+  margin-bottom: 8px;
+}
+
+.fragment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  
+  &:hover { background: #e9ecef; }
+}
+
+.toggle-icon {
+  font-size: 10px;
+  color: #666;
+}
+
+.fragment-icon {
+  font-size: 16px;
+}
+
+.fragment-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.fragment-node-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #999;
+}
+
+.fragment-nodes {
+  margin: 8px 0 8px 32px;
+}
+
+.node-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  
+  &.hotspot {
+    background: #ffebee;
+    border-color: #e74c3c;
+  }
+}
+
+.node-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.fragment-tree {
-  line-height: 1.8;
+.node-op-name {
+  flex: 1;
+  font-size: 13px;
+  color: #333;
 }
 
-:deep(.tree-fragment) {
-  margin-bottom: 4px;
-}
-
-:deep(.fragment-header) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-  
-  &:hover { background: rgba(255,255,255,0.05); }
-  &.has-hotspot { background: rgba(231, 76, 60, 0.15); }
-}
-
-:deep(.expand-icon) {
-  width: 16px;
-  font-size: 10px;
-  color: #666;
-}
-
-:deep(.frag-name) {
-  color: #61afef;
+.node-pct {
+  font-size: 12px;
+  color: #e74c3c;
   font-weight: 600;
 }
 
-:deep(.frag-time) {
-  color: #98c379;
-  font-size: 11px;
-}
-
-:deep(.hotspot-badge) {
-  background: rgba(231, 76, 60, 0.2);
-  color: #e74c3c;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-  margin-left: auto;
-}
-
-:deep(.fragment-content) {
-  margin-left: 24px;
-  border-left: 1px dashed #333;
-  padding-left: 12px;
-}
-
-:deep(.operators-block) {
-  margin: 4px 0;
-}
-
-:deep(.tree-operator) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 6px;
-  border-radius: 3px;
-  
-  &:hover { background: rgba(255,255,255,0.03); }
-  &.hotspot { 
-    background: rgba(231, 76, 60, 0.1);
-    border-left: 2px solid #e74c3c;
-  }
-}
-
-:deep(.op-name) {
-  color: #e5c07b;
-}
-
-:deep(.op-pct) {
-  color: #56b6c2;
-  font-size: 11px;
-  
-  &.critical { color: #e74c3c; font-weight: 600; }
-  &.high { color: #f39c12; font-weight: 600; }
-}
-
-:deep(.op-time) {
-  color: #5c6370;
-  font-size: 10px;
-  margin-left: auto;
-}
-
-:deep(.children-block) {
-  margin-top: 8px;
-}
-
-/* Pipeline View */
+/* Pipeline View Styles */
 .pipeline-view {
-  max-height: 600px;
+  padding: 20px;
+  max-height: 800px;
   overflow-y: auto;
 }
 
 .fragment-section {
-  margin-bottom: 16px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  overflow: hidden;
+  margin-bottom: 30px;
 }
 
 .fragment-title {
-  background: #f5f7fa;
-  padding: 10px 14px;
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #e8e8e8;
+  gap: 10px;
+  padding: 12px;
+  background: #2c3e50;
+  color: white;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.frag-icon { font-size: 16px; }
+.frag-icon {
+  font-size: 18px;
+}
 
 .frag-stats {
   margin-left: auto;
-  font-size: 11px;
-  color: #8c8c8c;
-  font-weight: normal;
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 .pipelines-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px;
+  margin-top: 10px;
+  margin-left: 20px;
 }
 
 .pipeline-section {
-  flex: 1;
-  min-width: 200px;
-  max-width: 300px;
-  background: #fafafa;
-  border-radius: 6px;
-  padding: 10px;
+  margin-bottom: 16px;
 }
 
 .pipeline-title {
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #595959;
+  font-weight: 600;
   font-size: 13px;
+  color: #34495e;
+  padding: 8px 12px;
+  background: #ecf0f1;
+  border-radius: 4px;
 }
 
 .operators-list {
-  font-size: 11px;
+  margin-top: 8px;
+  margin-left: 20px;
 }
 
 .operator-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: white;
+  border: 1px solid #e0e0e0;
   border-radius: 4px;
-  margin-bottom: 2px;
+  font-size: 12px;
   
-  &:hover { background: #f0f0f0; }
-  &.hotspot { background: #fff1f0; }
+  &.hotspot {
+    background: #ffebee;
+    border-color: #e74c3c;
+  }
 }
 
 .op-name {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: #333;
 }
 
 .op-pct {
-  color: #fa8c16;
+  color: #e74c3c;
   font-weight: 600;
+  min-width: 50px;
+  text-align: right;
 }
 
 .op-time {
-  color: #52c41a;
-  font-size: 10px;
+  color: #999;
+  min-width: 80px;
+  text-align: right;
 }
 </style>
