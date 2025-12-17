@@ -1,0 +1,48 @@
+// Color Variables
+:root {
+  // Primary colors
+  --primary-color: #409eff;
+  --primary-light: #66b1ff;
+  --primary-dark: #3a8ee6;
+
+  // Accent colors
+  --accent-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+
+  // Severity colors
+  --severity-critical: #f56c6c;
+  --severity-high: #e6a23c;
+  --severity-medium: #409eff;
+  --severity-low: #67c23a;
+
+  // Text colors
+  --text-primary: #303133;
+  --text-secondary: #606266;
+  --text-tertiary: #909399;
+  --text-placeholder: #c0c4cc;
+
+  // Background colors
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-tertiary: #ebeef5;
+  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+
+  // Header
+  --header-bg: rgba(255, 255, 255, 0.95);
+
+  // Border colors
+  --border-color: #dcdfe6;
+  --border-light: #e4e7ed;
+
+  // Shadow
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  // Card
+  --card-bg: #ffffff;
+  --card-radius: 8px;
+}
+

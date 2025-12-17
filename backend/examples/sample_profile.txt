@@ -1,0 +1,53 @@
+Query ID: d7c8a1e2-3f4b-5c6d-7e8f-9a0b1c2d3e4f
+Start Time: 2024-01-15 10:30:00
+End Time: 2024-01-15 10:30:02
+Total Time: 2s
+Query State: FINISHED
+Doris Version: 2.1.0
+
+SQL Statement:
+SELECT 
+    user_id,
+    COUNT(*) as order_count,
+    SUM(amount) as total_amount
+FROM orders
+WHERE created_at >= '2024-01-01'
+GROUP BY user_id
+ORDER BY total_amount DESC
+LIMIT 100
+
+Execution Profile:
+Fragment 0:
+  Pipeline 0:
+    RESULT_SINK (Plan Node 0):
+      - OperatorTotalTime: 50ms
+      - RowsReturned: 100
+    
+    SORT (Plan Node 1):
+      - OperatorTotalTime: 200ms
+      - RowsReturned: 100
+      - SortKeys: total_amount DESC
+    
+    AGGREGATE (Plan Node 2):
+      - OperatorTotalTime: 500ms
+      - RowsReturned: 10000
+      - GroupByColumns: user_id
+      - AggFunctions: COUNT(*), SUM(amount)
+
+Fragment 1:
+  Pipeline 0:
+    EXCHANGE (Plan Node 3):
+      - OperatorTotalTime: 150ms
+      - RowsReturned: 50000
+      - ExchangeType: SHUFFLE
+    
+    OLAP_SCAN (Plan Node 4):
+      - OperatorTotalTime: 1100ms
+      - RowsReturned: 1000000
+      - Table: orders
+      - Predicates: created_at >= '2024-01-01'
+      - PartitionsPruned: 12/365
+
+Peak Memory: 256MB
+Total CPU Time: 2000ms
+
