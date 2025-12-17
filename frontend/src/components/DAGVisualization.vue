@@ -116,10 +116,41 @@
                 <rect class="progress-bg" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="NODE_WIDTH" :height="NODE_PROGRESS_HEIGHT" />
                 <rect v-if="node.time_percentage" class="progress-fill" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
                 <rect class="node-border" :width="NODE_WIDTH" :height="NODE_HEIGHT" rx="3" />
-                <text class="node-title" x="10" :y="19">{{ formatOperatorName(node.operator_name) }}</text>
-                <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 15">plan_node_id={{ node.plan_node_id || 'N/A' }}</text>
-                <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 32">耗时: {{ formatGraphTime(node) }}</text>
-                <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 32" text-anchor="end">{{ formatPct(node.time_percentage) }}</text>
+                
+                <!-- 节点标题（显示合并标记） -->
+                <text class="node-title" x="10" :y="19">
+                  {{ formatOperatorName(node.operator_name) }}
+                  <tspan v-if="node.isMerged" class="merged-badge" dx="5" style="font-size: 12px; fill: #FFD700;">⚡</tspan>
+                </text>
+                
+                <!-- 节点详情 -->
+                <template v-if="node.isMerged">
+                  <!-- 合并节点显示两个节点的简化信息 -->
+                  <text class="node-detail-small" x="10" :y="NODE_HEADER_HEIGHT + 12" style="font-size: 10px;">
+                    {{ node.primaryNode.operator_name }}
+                  </text>
+                  <text class="node-detail-small" x="10" :y="NODE_HEADER_HEIGHT + 24" style="font-size: 10px;">
+                    + {{ node.secondaryNode.operator_name }}
+                  </text>
+                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 40">
+                    总耗时: {{ formatGraphTime(node) }}
+                  </text>
+                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 40" text-anchor="end">
+                    {{ formatPct(node.time_percentage) }}
+                  </text>
+                </template>
+                <template v-else>
+                  <!-- 普通节点 -->
+                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 15">
+                    plan_node_id={{ node.plan_node_id || 'N/A' }}
+                  </text>
+                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 32">
+                    耗时: {{ formatGraphTime(node) }}
+                  </text>
+                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 32" text-anchor="end">
+                    {{ formatPct(node.time_percentage) }}
+                  </text>
+                </template>
               </g>
             </g>
           </g>
@@ -134,17 +165,73 @@
             <button @click="deselectNode" class="close-btn"><i class="fas fa-times"></i></button>
           </div>
           <div class="detail-content">
-            <div class="detail-section">
-              <h4>基本信息</h4>
-              <div class="detail-item"><span class="label">Plan Node ID:</span><span class="value">{{ selectedNode.plan_node_id }}</span></div>
-              <div class="detail-item"><span class="label">Fragment:</span><span class="value">{{ selectedNode.fragment_id }}</span></div>
-              <div class="detail-item"><span class="label">Pipeline:</span><span class="value">{{ selectedNode.pipeline_id }}</span></div>
+            <!-- 合并节点显示 -->
+            <div v-if="selectedNode.isMerged" class="merged-node-details">
+              <div class="detail-section merged-indicator">
+                <h4>⚡ 合并节点</h4>
+                <div class="detail-item">
+                  <span class="label">类型:</span>
+                  <span class="value">{{ selectedNode.mergedType }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">总时间:</span>
+                  <span class="value">{{ formatGraphTime(selectedNode) }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">总占比:</span>
+                  <span class="value">{{ formatPct(selectedNode.time_percentage) }}</span>
+                </div>
+              </div>
+
+              <!-- 主节点信息 -->
+              <div class="detail-section sub-node-section">
+                <h4>🔹 {{ selectedNode.primaryNode.operator_name }}</h4>
+                <div class="detail-item">
+                  <span class="label">Fragment:</span>
+                  <span class="value">{{ selectedNode.primaryNode.fragment_id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Pipeline:</span>
+                  <span class="value">{{ selectedNode.primaryNode.pipeline_id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">执行时间:</span>
+                  <span class="value">{{ formatGraphTime(selectedNode.primaryNode) }}</span>
+                </div>
+              </div>
+
+              <!-- 次节点信息 (SINK) -->
+              <div class="detail-section sub-node-section">
+                <h4>🔹 {{ selectedNode.secondaryNode.operator_name }}</h4>
+                <div class="detail-item">
+                  <span class="label">Fragment:</span>
+                  <span class="value">{{ selectedNode.secondaryNode.fragment_id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Pipeline:</span>
+                  <span class="value">{{ selectedNode.secondaryNode.pipeline_id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">执行时间:</span>
+                  <span class="value">{{ formatGraphTime(selectedNode.secondaryNode) }}</span>
+                </div>
+              </div>
             </div>
-            <div class="detail-section">
-              <h4>性能指标</h4>
-              <div class="detail-item"><span class="label">执行时间:</span><span class="value">{{ formatGraphTime(selectedNode) }}</span></div>
-              <div class="detail-item"><span class="label">时间占比:</span><span class="value">{{ formatPct(selectedNode.time_percentage) }}</span></div>
-              <div class="detail-item"><span class="label">处理行数:</span><span class="value">{{ formatNumber(selectedNode.metrics?.rows_returned) }}</span></div>
+
+            <!-- 普通节点显示 -->
+            <div v-else>
+              <div class="detail-section">
+                <h4>基本信息</h4>
+                <div class="detail-item"><span class="label">Plan Node ID:</span><span class="value">{{ selectedNode.plan_node_id }}</span></div>
+                <div class="detail-item"><span class="label">Fragment:</span><span class="value">{{ selectedNode.fragment_id }}</span></div>
+                <div class="detail-item"><span class="label">Pipeline:</span><span class="value">{{ selectedNode.pipeline_id }}</span></div>
+              </div>
+              <div class="detail-section">
+                <h4>性能指标</h4>
+                <div class="detail-item"><span class="label">执行时间:</span><span class="value">{{ formatGraphTime(selectedNode) }}</span></div>
+                <div class="detail-item"><span class="label">时间占比:</span><span class="value">{{ formatPct(selectedNode.time_percentage) }}</span></div>
+                <div class="detail-item"><span class="label">处理行数:</span><span class="value">{{ formatNumber(selectedNode.metrics?.rows_returned) }}</span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -426,15 +513,125 @@ export default {
         nodesByDepth.get(depth).push(node);
       });
 
-      this.maxTime = Math.max(...this.tree.nodes.map(n => this.getNodeTime(n)), 1);
+      // 步骤1: 识别需要合并的节点对
+      const mergedNodeIds = new Set(); // 被合并掉的 SINK 节点 ID
+      const mergeMap = new Map(); // originalId -> mergedNode
+      
+      // 1.1 合并 LOCAL_EXCHANGE_SINK + LOCAL_EXCHANGE
+      this.tree.nodes.forEach(sinkNode => {
+        if (sinkNode.operator_name && sinkNode.operator_name.includes('LOCAL_EXCHANGE_SINK')) {
+          const exchangeNode = this.tree.nodes.find(n => 
+            n.operator_name && n.operator_name.includes('LOCAL_EXCHANGE_OPERATOR') &&
+            !n.operator_name.includes('SINK') &&
+            n.fragment_id === sinkNode.fragment_id &&
+            n.plan_node_id === sinkNode.plan_node_id
+          );
+          if (exchangeNode) {
+            const mergedNode = this.createMergedNode(exchangeNode, sinkNode, 'LOCAL_EXCHANGE');
+            mergeMap.set(exchangeNode.id, mergedNode);
+            mergeMap.set(sinkNode.id, mergedNode);
+            mergedNodeIds.add(sinkNode.id);
+          }
+        }
+      });
+
+      // 1.2 合并 DATA_STREAM_SINK + EXCHANGE
+      this.tree.nodes.forEach(sinkNode => {
+        if (sinkNode.operator_name && sinkNode.operator_name.includes('DATA_STREAM_SINK')) {
+          const destId = sinkNode.unique_metrics?.dest_id;
+          if (destId) {
+            const exchangeNode = this.tree.nodes.find(n => 
+              n.operator_name && n.operator_name.includes('EXCHANGE_OPERATOR') &&
+              !n.operator_name.includes('SINK') &&
+              !n.operator_name.includes('LOCAL') &&
+              n.plan_node_id === parseInt(destId)
+            );
+            if (exchangeNode) {
+              const mergedNode = this.createMergedNode(exchangeNode, sinkNode, 'DATA_STREAM');
+              mergeMap.set(exchangeNode.id, mergedNode);
+              mergeMap.set(sinkNode.id, mergedNode);
+              mergedNodeIds.add(sinkNode.id);
+            }
+          }
+        }
+      });
+
+      // 1.3 合并 AGGREGATION_SINK + AGGREGATION
+      this.tree.nodes.forEach(sinkNode => {
+        if (sinkNode.operator_name && sinkNode.operator_name.includes('AGGREGATION_SINK')) {
+          const aggNode = this.tree.nodes.find(n => 
+            n.operator_name && n.operator_name.includes('AGGREGATION_OPERATOR') &&
+            !n.operator_name.includes('SINK') &&
+            n.fragment_id === sinkNode.fragment_id &&
+            n.plan_node_id === sinkNode.plan_node_id
+          );
+          if (aggNode) {
+            const mergedNode = this.createMergedNode(aggNode, sinkNode, 'AGGREGATION');
+            mergeMap.set(aggNode.id, mergedNode);
+            mergeMap.set(sinkNode.id, mergedNode);
+            mergedNodeIds.add(sinkNode.id);
+          }
+        }
+      });
+
+      // 步骤2: 创建可见节点列表（过滤掉被合并的 SINK 节点）
+      const visibleNodes = [];
+      const processedIds = new Set();
+      
+      this.tree.nodes.forEach(node => {
+        if (mergedNodeIds.has(node.id)) {
+          // 跳过被合并的 SINK 节点
+          return;
+        }
+        
+        if (mergeMap.has(node.id)) {
+          const mergedNode = mergeMap.get(node.id);
+          if (!processedIds.has(mergedNode.id)) {
+            visibleNodes.push(mergedNode);
+            processedIds.add(mergedNode.id);
+          }
+        } else {
+          // 创建节点副本，避免修改原始数据
+          visibleNodes.push({
+            ...node,
+            children: node.children ? [...node.children] : []
+          });
+        }
+      });
+
+      // 步骤3: 更新 children 引用（将指向 SINK 的引用更新为合并节点）
+      visibleNodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          node.children = node.children.map(childId => {
+            if (mergeMap.has(childId)) {
+              const mergedChild = mergeMap.get(childId);
+              // 避免自引用
+              if (mergedChild.id !== node.id) {
+                return mergedChild.id;
+              }
+            }
+            return childId;
+          }).filter(childId => childId !== node.id); // 移除自引用
+        }
+      });
+
+      // 重新构建深度映射
+      const visibleNodesByDepth = new Map();
+      visibleNodes.forEach(node => {
+        const depth = node.depth || 0;
+        if (!visibleNodesByDepth.has(depth)) visibleNodesByDepth.set(depth, []);
+        visibleNodesByDepth.get(depth).push(node);
+      });
+
+      this.maxTime = Math.max(...visibleNodes.map(n => this.getNodeTime(n)), 1);
 
       const LEVEL_HEIGHT = 180, LEVEL_WIDTH = 240;
-      let maxDepth = Math.max(...this.tree.nodes.map(n => n.depth || 0));
+      let maxDepth = Math.max(...visibleNodes.map(n => n.depth || 0));
       this.svgHeight = Math.max(800, (maxDepth + 1) * LEVEL_HEIGHT + 150);
 
-      this.renderedNodes = this.tree.nodes.map(node => {
+      this.renderedNodes = visibleNodes.map(node => {
         const depth = node.depth || 0;
-        const levelNodes = nodesByDepth.get(depth) || [];
+        const levelNodes = visibleNodesByDepth.get(depth) || [];
         const indexInLevel = levelNodes.indexOf(node);
         const y = depth * LEVEL_HEIGHT + 80;
         const totalWidth = (levelNodes.length - 1) * LEVEL_WIDTH;
@@ -442,38 +639,89 @@ export default {
         return { ...node, x, y };
       });
 
+      // 步骤4: 构建连接线
       this.links = [];
-      this.tree.nodes.forEach(sourceNode => {
+      const renderedNodeMap = new Map(this.renderedNodes.map(n => [n.id, n]));
+      
+      visibleNodes.forEach(sourceNode => {
         if (!sourceNode.children) return;
         sourceNode.children.forEach((childId, idx) => {
-          const targetNode = nodeMap.get(childId);
+          const targetNode = renderedNodeMap.get(childId);
           if (!targetNode) return;
-          const source = this.renderedNodes.find(n => n.id === sourceNode.id);
-          const target = this.renderedNodes.find(n => n.id === targetNode.id);
-          if (source && target) {
-            const startX = target.x + this.NODE_WIDTH / 2;
-            const startY = target.y;
+          
+          const source = renderedNodeMap.get(sourceNode.id);
+          if (!source) return;
+          
+          if (source.id !== targetNode.id) {
+            const startX = targetNode.x + this.NODE_WIDTH / 2;
+            const startY = targetNode.y;
             const endX = source.x + this.NODE_WIDTH / 2;
             const endY = source.y + this.NODE_HEIGHT + 8;
             const controlY = (startY + endY) / 2;
             const path = `M ${startX} ${startY} C ${startX} ${controlY}, ${endX} ${controlY}, ${endX} ${endY}`;
-            const rows = this.getNodeRows(targetNode);
+            
+            // 获取原始节点的行数（用于显示）
+            const originalChild = nodeMap.get(childId) || targetNode;
+            const rows = this.getNodeRows(originalChild);
             let label = `Rows: ${this.formatRowsSimple(rows)}`;
+            
             if (sourceNode.operator_name && sourceNode.operator_name.includes('JOIN')) {
               label += idx === 0 ? ' (PROBE)' : ' (BUILD)';
             }
+            
             this.links.push({
-              id: `${source.id}-${target.id}`,
+              id: `${source.id}-${targetNode.id}`,
               path,
               labelX: (startX + endX) / 2,
               labelY: controlY - 8,
               label,
-              isHotspot: source.is_hotspot || target.is_hotspot,
+              isHotspot: source.is_hotspot || targetNode.is_hotspot,
               strokeWidth: Math.min(5, Math.max(1, Math.log10(rows + 1) / 2))
             });
           }
         });
       });
+    },
+    
+    // 创建合并节点
+    createMergedNode(primaryNode, secondaryNode, type) {
+      // primaryNode: EXCHANGE/AGGREGATION 等主节点
+      // secondaryNode: 对应的 SINK 节点
+      
+      // 合并 children
+      const mergedChildren = [...(primaryNode.children || [])];
+      if (secondaryNode.children) {
+        secondaryNode.children.forEach(childId => {
+          if (!mergedChildren.includes(childId)) {
+            mergedChildren.push(childId);
+          }
+        });
+      }
+      
+      // 合并时间
+      const primaryTime = this.getNodeTime(primaryNode);
+      const secondaryTime = this.getNodeTime(secondaryNode);
+      const totalTime = primaryTime + secondaryTime;
+      
+      // 合并百分比
+      const totalPct = (primaryNode.time_percentage || 0) + (secondaryNode.time_percentage || 0);
+      
+      return {
+        ...primaryNode, // 保留主节点的基本信息
+        id: primaryNode.id,
+        operator_name: type, // 使用简化的名称
+        children: mergedChildren,
+        isMerged: true,
+        mergedType: type,
+        primaryNode: primaryNode,
+        secondaryNode: secondaryNode,
+        time_percentage: totalPct,
+        is_hotspot: primaryNode.is_hotspot || secondaryNode.is_hotspot,
+        metrics: {
+          ...primaryNode.metrics,
+          operator_total_time: totalTime
+        }
+      };
     },
     getNodeTime(node) {
       if (!node?.metrics) return 0;
@@ -745,7 +993,9 @@ export default {
 .node-border { fill: none; stroke: #E0E0E0; stroke-width: 1; }
 .node-title { font-size: 13px; font-weight: 600; fill: white; pointer-events: none; }
 .node-detail { font-size: 11px; fill: #666; pointer-events: none; }
+.node-detail-small { font-size: 10px; fill: #999; pointer-events: none; }
 .node-percentage { font-size: 12px; font-weight: 600; fill: #333; pointer-events: none; }
+.merged-badge { fill: #FFD700; font-size: 12px; }
 
 .detail-panel {
   position: absolute;
@@ -773,6 +1023,29 @@ export default {
 
 .detail-content { padding: 20px; }
 .detail-section { margin-bottom: 20px; h4 { margin: 0 0 10px; font-size: 12px; color: #666; text-transform: uppercase; } }
+
+.merged-indicator {
+  background: #fff8dc;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid #FFD700;
+  
+  h4 { color: #ff8c00; }
+}
+
+.sub-node-section {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+  
+  h4 { 
+    color: #2196F3; 
+    font-size: 11px;
+    text-transform: none;
+  }
+}
+
 .detail-item {
   display: flex;
   justify-content: space-between;
