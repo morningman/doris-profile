@@ -1,14 +1,14 @@
+//! ProfileComposer - Main entry point for parsing Doris profiles
+//! Orchestrates all sub-parsers to build a complete Profile
+
 use crate::models::*;
 use crate::parser::error::{ParseError, ParseResult};
-use std::collections::HashMap;
+use crate::parser::core::{SectionParser, FragmentParser, TreeBuilder};
 
 /// ProfileComposer is responsible for parsing Doris profile text
 /// and composing it into a structured Profile object.
-/// 
-/// TODO: Implement actual parsing logic based on Doris profile format.
-/// Currently returns stub/mock data for framework testing.
 pub struct ProfileComposer {
-    // Add parser state fields as needed
+    // Parser state if needed
 }
 
 impl ProfileComposer {
@@ -25,163 +25,34 @@ impl ProfileComposer {
     /// # Returns
     /// * `ParseResult<Profile>` - The parsed profile or an error
     pub fn parse(&mut self, profile_text: &str) -> ParseResult<Profile> {
-        // TODO: Implement actual Doris profile parsing logic
-        // For now, return stub data to verify the framework works
-        
         if profile_text.trim().is_empty() {
             return Err(ParseError::InvalidFormat("Empty profile text".to_string()));
         }
         
-        // Create stub profile data
-        let summary = self.parse_summary_stub(profile_text);
-        let fragments = self.parse_fragments_stub();
-        let execution_tree = self.build_execution_tree_stub();
+        // Parse Summary section
+        let summary = SectionParser::parse_summary(profile_text)?;
+        
+        // Parse ChangedSessionVariables (optional)
+        let _variables = SectionParser::parse_session_variables(profile_text).ok();
+        
+        // Extract MergedProfile section
+        let merged_profile = SectionParser::extract_merged_profile(profile_text)?;
+        
+        // Parse Fragments from MergedProfile
+        let fragments = FragmentParser::extract_all_fragments(&merged_profile);
+        
+        if fragments.is_empty() {
+            return Err(ParseError::InvalidFormat("No fragments found in profile".to_string()));
+        }
+        
+        // Build execution tree from fragments
+        let execution_tree = TreeBuilder::build_from_fragments(&fragments, &summary);
         
         Ok(Profile {
             summary,
             fragments,
             execution_tree: Some(execution_tree),
         })
-    }
-    
-    /// Stub implementation for parsing summary
-    fn parse_summary_stub(&self, profile_text: &str) -> ProfileSummary {
-        // Extract some basic info if possible, otherwise use placeholders
-        let query_id = self.extract_field(profile_text, "Query ID")
-            .unwrap_or_else(|| "stub-query-id-12345".to_string());
-        
-        let sql_statement = self.extract_sql(profile_text)
-            .unwrap_or_else(|| "SELECT * FROM table".to_string());
-        
-        ProfileSummary {
-            query_id,
-            start_time: "2024-01-01 00:00:00".to_string(),
-            end_time: "2024-01-01 00:00:01".to_string(),
-            total_time: "1s".to_string(),
-            query_state: "FINISHED".to_string(),
-            doris_version: "2.1.0".to_string(),
-            sql_statement,
-            query_type: Some("SELECT".to_string()),
-            user: Some("root".to_string()),
-            default_db: Some("default".to_string()),
-            variables: HashMap::new(),
-            total_time_ms: Some(1000.0),
-            query_peak_memory: Some(1024 * 1024 * 100), // 100MB
-        }
-    }
-    
-    /// Stub implementation for parsing fragments
-    fn parse_fragments_stub(&self) -> Vec<Fragment> {
-        vec![
-            Fragment {
-                id: "Fragment 0".to_string(),
-                backend_addresses: vec!["127.0.0.1:9060".to_string()],
-                instance_ids: vec!["instance-0".to_string()],
-                pipelines: vec![
-                    Pipeline {
-                        id: "Pipeline 0".to_string(),
-                        metrics: HashMap::new(),
-                        operators: vec![
-                            Operator {
-                                id: "0".to_string(),
-                                name: "OlapScanNode".to_string(),
-                                metrics: HashMap::new(),
-                            },
-                        ],
-                    },
-                ],
-            },
-        ]
-    }
-    
-    /// Stub implementation for building execution tree
-    fn build_execution_tree_stub(&self) -> ExecutionTree {
-        let root_node = ExecutionTreeNode {
-            id: "node-0".to_string(),
-            operator_name: "RESULT_SINK".to_string(),
-            node_type: NodeType::ResultSink,
-            plan_node_id: Some(0),
-            parent_plan_node_id: None,
-            metrics: OperatorMetrics {
-                operator_total_time: Some(100_000_000), // 100ms in ns
-                operator_total_time_raw: Some("100ms".to_string()),
-                rows_returned: Some(1000),
-                memory_used: Some(1024 * 1024),
-                cpu_time: Some(50_000_000),
-                wait_time: Some(10_000_000),
-            },
-            children: vec!["node-1".to_string()],
-            depth: 0,
-            is_hotspot: false,
-            hotspot_severity: HotspotSeverity::None,
-            fragment_id: Some("Fragment 0".to_string()),
-            pipeline_id: Some("Pipeline 0".to_string()),
-            time_percentage: Some(10.0),
-            is_most_consuming: false,
-            is_second_most_consuming: false,
-            unique_metrics: HashMap::new(),
-        };
-        
-        let scan_node = ExecutionTreeNode {
-            id: "node-1".to_string(),
-            operator_name: "OLAP_SCAN".to_string(),
-            node_type: NodeType::OlapScan,
-            plan_node_id: Some(1),
-            parent_plan_node_id: Some(0),
-            metrics: OperatorMetrics {
-                operator_total_time: Some(900_000_000), // 900ms in ns
-                operator_total_time_raw: Some("900ms".to_string()),
-                rows_returned: Some(100000),
-                memory_used: Some(1024 * 1024 * 50),
-                cpu_time: Some(800_000_000),
-                wait_time: Some(50_000_000),
-            },
-            children: vec![],
-            depth: 1,
-            is_hotspot: true,
-            hotspot_severity: HotspotSeverity::High,
-            fragment_id: Some("Fragment 0".to_string()),
-            pipeline_id: Some("Pipeline 0".to_string()),
-            time_percentage: Some(90.0),
-            is_most_consuming: true,
-            is_second_most_consuming: false,
-            unique_metrics: HashMap::new(),
-        };
-        
-        ExecutionTree {
-            root: root_node.clone(),
-            nodes: vec![root_node, scan_node],
-        }
-    }
-    
-    /// Try to extract a field value from profile text
-    fn extract_field(&self, text: &str, field_name: &str) -> Option<String> {
-        for line in text.lines() {
-            if line.contains(field_name) {
-                if let Some(pos) = line.find(':') {
-                    return Some(line[pos + 1..].trim().to_string());
-                }
-                if let Some(pos) = line.find('=') {
-                    return Some(line[pos + 1..].trim().to_string());
-                }
-            }
-        }
-        None
-    }
-    
-    /// Try to extract SQL statement from profile text
-    fn extract_sql(&self, text: &str) -> Option<String> {
-        // Look for common SQL patterns
-        for line in text.lines() {
-            let trimmed = line.trim();
-            if trimmed.to_uppercase().starts_with("SELECT") 
-                || trimmed.to_uppercase().starts_with("INSERT")
-                || trimmed.to_uppercase().starts_with("UPDATE")
-                || trimmed.to_uppercase().starts_with("DELETE") {
-                return Some(trimmed.to_string());
-            }
-        }
-        None
     }
 }
 
@@ -203,14 +74,118 @@ mod tests {
     }
     
     #[test]
-    fn test_parse_stub_profile() {
+    fn test_parse_minimal_profile() {
+        let profile_text = r#"Summary:
+   - Profile ID: test-123
+   - Task Type: QUERY
+   - Start Time: 2025-01-01 00:00:00
+   - End Time: 2025-01-01 00:00:01
+   - Total: 1sec
+   - Task State: OK
+   - User: root
+   - Default Db: test
+   - Sql Statement: SELECT 1
+Execution Summary:
+   - Workload Group: normal
+ChangedSessionVariables:
+[]
+MergedProfile:
+     Fragments:
+       Fragment 0:
+         Pipeline 0(instance_num=1):
+           - WaitWorkerTime: avg 18.605us, max 18.605us, min 18.605us
+           RESULT_SINK_OPERATOR(id=2147483647):
+             CommonCounters:
+               - ExecTime: avg 95.241us, max 95.241us, min 95.241us
+               - InputRows: sum 1, avg 1, max 1, min 1
+             CustomCounters:
+"#;
+        
         let mut composer = ProfileComposer::new();
-        let result = composer.parse("Query ID: test-123\nSELECT * FROM users");
-        assert!(result.is_ok());
+        let result = composer.parse(profile_text);
+        
+        assert!(result.is_ok(), "Parse failed: {:?}", result.err());
         
         let profile = result.unwrap();
-        assert!(!profile.summary.query_id.is_empty());
+        assert_eq!(profile.summary.query_id, "test-123");
+        assert_eq!(profile.summary.query_state, "OK");
+        assert!(!profile.fragments.is_empty());
         assert!(profile.execution_tree.is_some());
+        
+        let tree = profile.execution_tree.unwrap();
+        assert!(!tree.nodes.is_empty());
+        assert!(tree.root.operator_name.contains("RESULT_SINK"));
+    }
+    
+    #[test]
+    fn test_parse_complex_profile() {
+        let profile_text = r#"Summary:
+   - Profile ID: 37f4f7ab99a741ed-8fd24882055ce279
+   - Task Type: QUERY
+   - Start Time: 2025-12-15 19:55:24
+   - End Time: 2025-12-15 19:55:25
+   - Total: 1sec240ms
+   - Task State: OK
+   - User: root
+   - Default Catalog: iceberg
+   - Default Db: tpcds1000_parquet
+   - Sql Statement: SELECT * FROM test
+Execution Summary:
+   - Workload Group: normal
+   - Parse SQL Time: 2ms
+ChangedSessionVariables:
+[
+  {
+    "VarName": "enable_profile",
+    "CurrentValue": "true",
+    "DefaultValue": "false"
+  }
+]
+MergedProfile:
+     Fragments:
+       Fragment 0:
+         Pipeline 0(instance_num=1):
+           - WaitWorkerTime: avg 18.605us, max 18.605us, min 18.605us
+           RESULT_SINK_OPERATOR(id=2147483647):
+             CommonCounters:
+               - ExecTime: avg 95.241us, max 95.241us, min 95.241us
+           SORT_OPERATOR(nereids_id=1966)(id=28):
+             CommonCounters:
+               - ExecTime: avg 14.905us, max 14.905us, min 14.905us
+               - RowsProduced: sum 1, avg 1, max 1, min 1
+         Pipeline 1(instance_num=1):
+           DATA_STREAM_SINK_OPERATOR(dest_id=25):
+             CommonCounters:
+               - ExecTime: avg 80.264us, max 145.694us, min 18.570us
+       Fragment 1:
+         Pipeline 0(instance_num=48):
+           EXCHANGE_OPERATOR(id=25):
+             CommonCounters:
+               - ExecTime: avg 14.767us, max 31.250us, min 8.681us
+           FILE_SCAN_OPERATOR (id=20. nereids_id=1791. table name = web_sales):
+             CommonCounters:
+               - ExecTime: avg 683.359ms, max 807.567ms, min 544.247ms
+               - RowsProduced: sum 183.75K (183750), avg 3.828K (3828), max 4.278K (4278), min 3.452K (3452)
+"#;
+        
+        let mut composer = ProfileComposer::new();
+        let result = composer.parse(profile_text);
+        
+        assert!(result.is_ok(), "Parse failed: {:?}", result.err());
+        
+        let profile = result.unwrap();
+        assert_eq!(profile.summary.query_id, "37f4f7ab99a741ed-8fd24882055ce279");
+        assert_eq!(profile.fragments.len(), 2);
+        
+        // Check execution tree
+        let tree = profile.execution_tree.as_ref().unwrap();
+        assert!(tree.nodes.len() >= 4);
+        
+        // Find FILE_SCAN operator and check it's the most consuming
+        let scan_node = tree.nodes.iter().find(|n| n.operator_name.contains("FILE_SCAN"));
+        assert!(scan_node.is_some());
+        let scan = scan_node.unwrap();
+        assert!(scan.time_percentage.is_some());
+        assert!(scan.is_most_consuming || scan.time_percentage.unwrap() > 50.0);
     }
 }
-

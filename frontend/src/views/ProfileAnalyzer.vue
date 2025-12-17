@@ -45,6 +45,9 @@
         <button class="btn btn-secondary" @click="handleReset">
           <i class="fas fa-arrow-left"></i> Analyze Another Profile
         </button>
+        <button class="btn btn-outline" @click="toggleDebug">
+          <i class="fas fa-bug"></i> {{ showDebug ? 'Hide' : 'Show' }} Debug JSON
+        </button>
       </div>
 
       <!-- Summary Section -->
@@ -54,12 +57,66 @@
         :conclusion="conclusion"
       />
 
+      <!-- Debug JSON Panel -->
+      <div v-if="showDebug" class="card debug-card">
+        <div class="card-header">
+          <h3><i class="fas fa-code"></i> Debug: Execution Tree JSON</h3>
+          <div class="debug-actions">
+            <button class="btn btn-sm" @click="copyJson">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+            <span v-if="copySuccess" class="copy-success">Copied!</span>
+          </div>
+        </div>
+        <div class="debug-content">
+          <div class="debug-stats">
+            <span class="stat">
+              <strong>Total Nodes:</strong> {{ executionTree?.nodes?.length || 0 }}
+            </span>
+            <span class="stat">
+              <strong>Root:</strong> {{ executionTree?.root?.operator_name || 'N/A' }}
+            </span>
+            <span class="stat">
+              <strong>Fragments:</strong> {{ fragmentCount }}
+            </span>
+          </div>
+          <div class="json-tabs">
+            <button 
+              :class="['tab-btn', { active: debugTab === 'tree' }]"
+              @click="debugTab = 'tree'"
+            >
+              Execution Tree
+            </button>
+            <button 
+              :class="['tab-btn', { active: debugTab === 'nodes' }]"
+              @click="debugTab = 'nodes'"
+            >
+              All Nodes ({{ executionTree?.nodes?.length || 0 }})
+            </button>
+            <button 
+              :class="['tab-btn', { active: debugTab === 'summary' }]"
+              @click="debugTab = 'summary'"
+            >
+              Summary
+            </button>
+            <button 
+              :class="['tab-btn', { active: debugTab === 'hotspots' }]"
+              @click="debugTab = 'hotspots'"
+            >
+              Hotspots ({{ hotspots?.length || 0 }})
+            </button>
+          </div>
+          <pre class="json-content">{{ formattedDebugJson }}</pre>
+        </div>
+      </div>
+
       <!-- Main Content Grid -->
       <div class="result-grid">
         <!-- Execution Tree -->
         <div class="card execution-tree-card">
           <div class="card-header">
             <h3><i class="fas fa-project-diagram"></i> Execution Plan</h3>
+            <span class="node-count">{{ executionTree?.nodes?.length || 0 }} nodes</span>
           </div>
           <DAGVisualization :tree="executionTree" />
         </div>
@@ -100,6 +157,9 @@ export default {
   setup() {
     const store = useStore();
     const activeTab = ref("file");
+    const showDebug = ref(false);
+    const debugTab = ref("tree");
+    const copySuccess = ref(false);
 
     // Getters
     const hasResult = computed(() => store.getters.hasResult);
@@ -112,6 +172,36 @@ export default {
     const performanceScore = computed(() => store.getters.performanceScore);
     const conclusion = computed(() => store.getters.conclusion);
 
+    const fragmentCount = computed(() => {
+      if (!executionTree.value?.nodes) return 0;
+      const fragments = new Set();
+      executionTree.value.nodes.forEach(n => {
+        if (n.fragment_id) fragments.add(n.fragment_id);
+      });
+      return fragments.size;
+    });
+
+    const formattedDebugJson = computed(() => {
+      let data = null;
+      switch (debugTab.value) {
+        case 'tree':
+          data = executionTree.value;
+          break;
+        case 'nodes':
+          data = executionTree.value?.nodes || [];
+          break;
+        case 'summary':
+          data = summary.value;
+          break;
+        case 'hotspots':
+          data = hotspots.value;
+          break;
+        default:
+          data = executionTree.value;
+      }
+      return JSON.stringify(data, null, 2);
+    });
+
     const hotspotBadgeClass = computed(() => {
       const count = hotspots.value.length;
       if (count === 0) return "badge-low";
@@ -123,6 +213,22 @@ export default {
       if (hasHigh) return "badge-high";
       return "badge-medium";
     });
+
+    const toggleDebug = () => {
+      showDebug.value = !showDebug.value;
+    };
+
+    const copyJson = async () => {
+      try {
+        await navigator.clipboard.writeText(formattedDebugJson.value);
+        copySuccess.value = true;
+        setTimeout(() => {
+          copySuccess.value = false;
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    };
 
     // Actions
     const handleFileUpload = async (file) => {
@@ -143,6 +249,9 @@ export default {
 
     return {
       activeTab,
+      showDebug,
+      debugTab,
+      copySuccess,
       hasResult,
       isLoading,
       error,
@@ -152,7 +261,11 @@ export default {
       summary,
       performanceScore,
       conclusion,
+      fragmentCount,
+      formattedDebugJson,
       hotspotBadgeClass,
+      toggleDebug,
+      copyJson,
       handleFileUpload,
       handleTextSubmit,
       handleReset,
@@ -210,6 +323,135 @@ export default {
 
 .action-bar {
   margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #dcdfe6;
+  color: #606266;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    border-color: #409eff;
+    color: #409eff;
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+.btn-sm {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    border-color: #409eff;
+    color: #409eff;
+  }
+}
+
+.debug-card {
+  margin-bottom: 20px;
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .debug-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .copy-success {
+    color: #67c23a;
+    font-size: 12px;
+  }
+}
+
+.debug-content {
+  padding: 16px;
+}
+
+.debug-stats {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 6px;
+
+  .stat {
+    font-size: 13px;
+    color: #606266;
+
+    strong {
+      color: #303133;
+    }
+  }
+}
+
+.json-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 12px;
+
+  .tab-btn {
+    padding: 6px 14px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background: #fff;
+    color: #606266;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: #409eff;
+      color: #409eff;
+    }
+
+    &.active {
+      background: #409eff;
+      border-color: #409eff;
+      color: #fff;
+    }
+  }
+}
+
+.json-content {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 500px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .result-grid {
@@ -225,6 +467,20 @@ export default {
 
 .execution-tree-card {
   min-height: 500px;
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .node-count {
+    font-size: 12px;
+    color: #909399;
+    background: #f4f4f5;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
 }
 
 .hotspots-card {
@@ -232,4 +488,3 @@ export default {
   overflow-y: auto;
 }
 </style>
-
