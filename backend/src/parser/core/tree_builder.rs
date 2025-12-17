@@ -131,6 +131,8 @@ impl TreeBuilder {
         let mut exchange_nodes: HashMap<i32, usize> = HashMap::new(); // plan_node_id -> node index
         let mut sink_nodes_by_dest: HashMap<i32, usize> = HashMap::new(); // dest_id -> node index
         let mut operators_by_nereids: HashMap<(String, i32), Vec<usize>> = HashMap::new(); // (fragment, nereids_id) -> nodes
+        let mut local_exchange_nodes: HashMap<(String, i32), usize> = HashMap::new(); // (fragment, plan_node_id) -> node index
+        let mut local_exchange_sink_nodes: HashMap<(String, i32), usize> = HashMap::new(); // (fragment, plan_node_id) -> node index
         
         for (idx, node) in nodes.iter().enumerate() {
             if let (Some(fid), Some(pid)) = (&node.fragment_id, &node.pipeline_id) {
@@ -139,10 +141,26 @@ impl TreeBuilder {
                     .or_default()
                     .push(idx);
                 
-                // Track EXCHANGE operators by their plan_node_id
-                if node.operator_name.contains("EXCHANGE_OPERATOR") && !node.operator_name.contains("SINK") {
+                // Track EXCHANGE operators by their plan_node_id (non-LOCAL)
+                if node.operator_name.contains("EXCHANGE_OPERATOR") 
+                    && !node.operator_name.contains("SINK") 
+                    && !node.operator_name.contains("LOCAL") {
                     if let Some(plan_id) = node.plan_node_id {
                         exchange_nodes.insert(plan_id, idx);
+                    }
+                }
+                
+                // Track LOCAL_EXCHANGE operators by (fragment, plan_node_id)
+                if node.operator_name.contains("LOCAL_EXCHANGE_OPERATOR") && !node.operator_name.contains("SINK") {
+                    if let Some(plan_id) = node.plan_node_id {
+                        local_exchange_nodes.insert((fid.clone(), plan_id), idx);
+                    }
+                }
+                
+                // Track LOCAL_EXCHANGE_SINK operators by (fragment, plan_node_id)
+                if node.operator_name.contains("LOCAL_EXCHANGE_SINK") {
+                    if let Some(plan_id) = node.plan_node_id {
+                        local_exchange_sink_nodes.insert((fid.clone(), plan_id), idx);
                     }
                 }
                 
@@ -182,24 +200,49 @@ impl TreeBuilder {
             }
         }
         
-        // 2. Connect SINK operators to their corresponding non-SINK operators by nereids_id
-        // (within the same fragment)
+        // 2. Connect non-SINK operators to their corresponding SINK operators
+        // Example: SORT_OPERATOR -> SORT_SINK_OPERATOR (in different pipelines)
+        // Use name-based matching: OPERATOR_NAME -> OPERATOR_NAME_SINK
+        // First, collect all connections to be made
+        let mut sink_connections: Vec<(usize, String)> = Vec::new();
+        
         for (idx, node) in nodes.iter().enumerate() {
-            if node.operator_name.contains("SINK") && !node.operator_name.contains("RESULT_SINK") && !node.operator_name.contains("DATA_STREAM_SINK") {
-                // Find matching non-SINK operator with same nereids_id in the same fragment
+            if !node.operator_name.contains("SINK") {
+                // Try to find corresponding SINK operator in the same fragment
+                let expected_sink_name = if node.operator_name.ends_with("_OPERATOR") {
+                    node.operator_name.replace("_OPERATOR", "_SINK_OPERATOR")
+                } else {
+                    format!("{}_SINK", node.operator_name)
+                };
+                
+                if let Some(fid) = &node.fragment_id {
+                    // Find SINK with matching name in a different pipeline
+                    for (other_idx, other_node) in nodes.iter().enumerate() {
+                        if other_idx != idx 
+                            && other_node.fragment_id.as_ref() == Some(fid)
+                            && other_node.pipeline_id != node.pipeline_id
+                            && other_node.operator_name == expected_sink_name {
+                            // Record connection: non-SINK -> SINK
+                            sink_connections.push((idx, other_node.id.clone()));
+                            break; // Only connect to one SINK
+                        }
+                    }
+                }
+                
+                // Also try nereids_id matching for cases where name doesn't match exactly
                 if let Some(nereids_str) = node.unique_metrics.get("nereids_id") {
                     if let Ok(nereids_id) = nereids_str.parse::<i32>() {
                         if let Some(fid) = &node.fragment_id {
                             if let Some(matching_nodes) = operators_by_nereids.get(&(fid.clone(), nereids_id)) {
                                 for &match_idx in matching_nodes {
-                                    // Connect non-SINK to SINK (SINK feeds into non-SINK)
-                                    if match_idx != idx && !nodes[match_idx].operator_name.contains("SINK") {
-                                        // The non-SINK operator should have SINK as its child
-                                        let sink_id = nodes[idx].id.clone();
-                                        if !nodes[match_idx].children.contains(&sink_id) {
-                                            // Actually, SINK feeds INTO the operator, so SINK is the producer
-                                            // Let's connect the last operator in SINK's pipeline to EXCHANGE/non-SINK
-                                        }
+                                    if match_idx != idx 
+                                        && nodes[match_idx].operator_name.contains("SINK")
+                                        && !nodes[match_idx].operator_name.contains("DATA_STREAM_SINK")
+                                        && !nodes[match_idx].operator_name.contains("RESULT_SINK")
+                                        && nodes[match_idx].pipeline_id != node.pipeline_id {
+                                        // Record connection
+                                        sink_connections.push((idx, nodes[match_idx].id.clone()));
+                                        break;
                                     }
                                 }
                             }
@@ -209,11 +252,20 @@ impl TreeBuilder {
             }
         }
         
+        // Apply sink connections
+        for (parent_idx, child_id) in sink_connections {
+            if !nodes[parent_idx].children.contains(&child_id) {
+                nodes[parent_idx].children.push(child_id);
+            }
+        }
+        
         // 3. Connect EXCHANGE operators to DATA_STREAM_SINK operators (cross-fragment)
         // DATA_STREAM_SINK(dest_id=X) sends data to EXCHANGE_OPERATOR(id=X)
+        // In the tree structure: EXCHANGE receives from DATA_STREAM_SINK
+        // So EXCHANGE (parent/consumer) has DATA_STREAM_SINK as child (producer)
         for (dest_id, sink_idx) in &sink_nodes_by_dest {
             if let Some(&exchange_idx) = exchange_nodes.get(dest_id) {
-                // EXCHANGE receives data from SINK, so SINK is a child of EXCHANGE
+                // EXCHANGE receives from SINK, so SINK is a child of EXCHANGE
                 let sink_id = nodes[*sink_idx].id.clone();
                 if !nodes[exchange_idx].children.contains(&sink_id) {
                     nodes[exchange_idx].children.push(sink_id);
@@ -221,47 +273,15 @@ impl TreeBuilder {
             }
         }
         
-        // 4. Connect pipelines within a fragment
-        // The last operator of pipeline N should connect to the first operator of pipeline N+1's SINK operator
-        let mut fragments: Vec<String> = nodes_by_fragment_pipeline.keys()
-            .map(|(f, _)| f.clone())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-        fragments.sort();
-        
-        for fid in &fragments {
-            let mut pipelines: Vec<String> = nodes_by_fragment_pipeline.keys()
-                .filter(|(f, _)| f == fid)
-                .map(|(_, p)| p.clone())
-                .collect();
-            pipelines.sort();
-            
-            // Connect last non-SINK of pipeline to first SINK of next pipeline
-            for i in 0..pipelines.len() {
-                if i + 1 < pipelines.len() {
-                    let current_pipe = &pipelines[i];
-                    let next_pipe = &pipelines[i + 1];
-                    
-                    if let Some(current_nodes) = nodes_by_fragment_pipeline.get(&(fid.clone(), current_pipe.clone())) {
-                        if let Some(next_nodes) = nodes_by_fragment_pipeline.get(&(fid.clone(), next_pipe.clone())) {
-                            // Find last node of current pipeline
-                            if let Some(&last_idx) = current_nodes.last() {
-                                // Find first SINK in next pipeline
-                                for &next_idx in next_nodes {
-                                    if nodes[next_idx].operator_name.contains("SINK") {
-                                        // Connect last of current to first SINK of next
-                                        let next_id = nodes[next_idx].id.clone();
-                                        if !nodes[last_idx].children.contains(&next_id) {
-                                            // Actually, the SINK of next pipeline feeds back
-                                            // We need the data flow direction correct
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+        // 4. Connect LOCAL_EXCHANGE_OPERATOR to LOCAL_EXCHANGE_SINK_OPERATOR
+        // LOCAL_EXCHANGE and LOCAL_EXCHANGE_SINK with the same id should be connected
+        // LOCAL_EXCHANGE (parent/consumer) -> LOCAL_EXCHANGE_SINK (child/producer)
+        for ((frag, exchange_id), exchange_idx) in &local_exchange_nodes {
+            if let Some(&sink_idx) = local_exchange_sink_nodes.get(&(frag.clone(), *exchange_id)) {
+                // LOCAL_EXCHANGE receives from LOCAL_EXCHANGE_SINK
+                let sink_id = nodes[sink_idx].id.clone();
+                if !nodes[*exchange_idx].children.contains(&sink_id) {
+                    nodes[*exchange_idx].children.push(sink_id);
                 }
             }
         }
@@ -436,9 +456,44 @@ impl TreeBuilder {
         }
         
         for op in &pipeline.operators {
-            text.push_str(&format!("   {}(id={}):\n", op.name, op.id));
+            // Reconstruct operator header based on type
+            if op.name.contains("DATA_STREAM_SINK") {
+                // DATA_STREAM_SINK_OPERATOR(dest_id=X):
+                if let Some(dest_id) = op.metrics.get("dest_id") {
+                    text.push_str(&format!("   {}(dest_id={}):\n", op.name, dest_id));
+                } else {
+                    text.push_str(&format!("   {}:\n", op.name));
+                }
+            } else if op.name.contains("LOCAL_EXCHANGE") {
+                // LOCAL_EXCHANGE_OPERATOR(type)(id=X):
+                if let Some(exchange_type) = op.metrics.get("exchange_type") {
+                    text.push_str(&format!("   {}({})(id={}):\n", op.name, exchange_type, op.id));
+                } else {
+                    text.push_str(&format!("   {}(id={}):\n", op.name, op.id));
+                }
+            } else {
+                // Standard format: OPERATOR(nereids_id=X)(id=Y):
+                // Or alternate format: OPERATOR (id=X. nereids_id=Y. ...)
+                if let Some(nereids_id) = op.metrics.get("nereids_id") {
+                    // Check if there's table_name
+                    if let Some(table_name) = op.metrics.get("table_name") {
+                        text.push_str(&format!("   {}(nereids_id={})(id={}, table name = {}):\n", 
+                            op.name, nereids_id, op.id, table_name));
+                    } else {
+                        text.push_str(&format!("   {}(nereids_id={})(id={}):\n", 
+                            op.name, nereids_id, op.id));
+                    }
+                } else {
+                    text.push_str(&format!("   {}(id={}):\n", op.name, op.id));
+                }
+            }
+            
             text.push_str("     CommonCounters:\n");
             for (k, v) in &op.metrics {
+                // Skip metadata fields that were already in the header
+                if k == "dest_id" || k == "nereids_id" || k == "exchange_type" || k == "table_name" {
+                    continue;
+                }
                 text.push_str(&format!("        - {}: {}\n", k, v));
             }
         }
