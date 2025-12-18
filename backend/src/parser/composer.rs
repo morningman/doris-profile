@@ -17,6 +17,19 @@ impl ProfileComposer {
         Self {}
     }
     
+    /// Filter out DetailProfile section, keeping only the first 4 sections:
+    /// Summary, Execution Summary, ChangedSessionVariables, and MergedProfile
+    fn filter_detail_profile(profile_text: &str) -> String {
+        // Find the position of DetailProfile marker
+        if let Some(detail_pos) = profile_text.find("DetailProfile") {
+            // Return everything before DetailProfile
+            profile_text[..detail_pos].to_string()
+        } else {
+            // If DetailProfile is not found, return the entire text
+            profile_text.to_string()
+        }
+    }
+    
     /// Parse the profile text and return a structured Profile
     /// 
     /// # Arguments
@@ -29,16 +42,20 @@ impl ProfileComposer {
             return Err(ParseError::InvalidFormat("Empty profile text".to_string()));
         }
         
+        // Filter out DetailProfile section - we only need the first 4 sections:
+        // Summary, Execution Summary, ChangedSessionVariables, and MergedProfile
+        let filtered_text = Self::filter_detail_profile(profile_text);
+        
         // Parse Summary section
-        let mut summary = SectionParser::parse_summary(profile_text)?;
+        let mut summary = SectionParser::parse_summary(&filtered_text)?;
         
         // Parse ChangedSessionVariables (optional)
-        if let Ok(variables) = SectionParser::parse_session_variables(profile_text) {
+        if let Ok(variables) = SectionParser::parse_session_variables(&filtered_text) {
             summary.session_variables = variables;
         }
         
         // Extract MergedProfile section
-        let merged_profile = SectionParser::extract_merged_profile(profile_text)?;
+        let merged_profile = SectionParser::extract_merged_profile(&filtered_text)?;
         
         // Parse Fragments from MergedProfile
         let fragments = FragmentParser::extract_all_fragments(&merged_profile);
