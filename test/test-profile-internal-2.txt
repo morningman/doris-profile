@@ -1,0 +1,241 @@
+Summary:
+   - Profile ID: af3662951b1149f2-bcd99115180f7329
+   - Task Type: QUERY
+   - Start Time: 2025-12-18 21:55:11
+   - End Time: 2025-12-18 21:55:11
+   - Total: 16ms
+   - Task State: OK
+   - User: root
+   - Default Catalog: internal
+   - Default Db: tpcds
+   - Sql Statement: select * from store_sales limit 1
+   - Distributed Plan: N/A
+Execution Summary:
+   - Workload Group: normal
+   - Parse SQL Time: 1ms
+   - Plan Time: 5ms
+     - Garbage Collect During Plan Time: 0ms
+     - Nereids Lock Table Time: 1ms
+     - Nereids Analysis Time: 0ms
+     - Nereids Rewrite Time: 1ms
+       - Nereids Fold Const By BE Time: 0ms
+     - Nereids Collect Table Partition Time: 0ms
+   - Nereids Pre Rewrite By Mv Time: N/A
+     - Nereids Optimize Time: N/A
+     - Nereids Translate Time: 0ms
+       - Init Scan Node Time: N/A
+       - Finalize Scan Node Time: N/A
+         - Get Splits Time: N/A
+         - Get Partitions Time: N/A
+         - Get Partition Files Time: N/A
+       - Create Scan Range Time: N/A
+     - Nereids Distribute Time: 1ms
+   - Get Meta Version Time: N/A
+     - Get Partition Version Time: N/A
+     - Get Partition Version Count (hasData): N/A
+     - Get Partition Version Count: N/A
+     - Get Table Version Time: N/A
+     - Get Table Version Count: N/A
+   - Schedule Time: 4ms
+     - Fragment Assign Time: 1ms
+     - Fragment Serialize Time: 1ms
+     - Fragment RPC Phase1 Time: 2ms
+     - Fragment RPC Phase2 Time: 0ms
+     - Fragment Compressed Size: 5.19 KB
+     - Fragment RPC Count: 2
+   - Schedule Time Of BE: {"phase1":{"172.20.32.136: 8067":{"RPC Work Time":"1ms","RPC Latency From FE To BE":"0ms","RPC Work Queue Time":"0ms","RPC Latency From BE To FE":"1ms"}},"phase2":{"172.20.32.136: 8067":{"RPC Work Time":"0ms","RPC Latency From FE To BE":"0ms","RPC Work Queue Time":"0ms","RPC Latency From BE To FE":"0ms"}}}
+   - Wait and Fetch Result Time: 6ms
+   - Fetch Result Time: 4ms
+   - Write Result Time: 0ms
+   - Doris Version: 50addf0b84a
+   - Is Nereids: Yes
+   - Is Cached: No
+   - Total Instances Num: 2
+   - Instances Num Per BE: 172.20.32.136:8067:2
+   - Parallel Fragment Exec Instance Num: 8
+   - Trace ID: 
+   - Transaction Commit Time: N/A
+   - System Message: N/A
+   - Executed By Frontend: N/A
+   - Splits Assignment Weight: N/A
+
+ChangedSessionVariables:
+[
+  {
+    "VarName": "enable_profile",
+    "CurrentValue": "true",
+    "DefaultValue": "false"
+  }
+]
+MergedProfile:
+     Fragments:
+       Fragment 0:
+         Pipeline 0(instance_num=1):
+            - WaitWorkerTime: avg 194.646us, max 194.646us, min 194.646us
+           RESULT_SINK_OPERATOR(id=2147483647):
+             CommonCounters:
+                - ExecTime: avg 151.916us, max 151.916us, min 151.916us
+                - InputRows: sum 1, avg 1, max 1, min 1
+                - MemoryUsage: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - MemoryUsagePeak: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - WaitForDependency[RESULT_SINK_OPERATOR_DEPENDENCY]Time: avg 0ns, max 0ns, min 0ns
+             CustomCounters:
+                - WaitForDependencyTime: avg 0ns, max 0ns, min 0ns
+           EXCHANGE_OPERATOR(id=1):
+              - PlanInfo
+                 - offset: 0
+                 - limit: 1
+             CommonCounters:
+                - BlocksProduced: sum 1, avg 1, max 1, min 1
+                - ExecTime: avg 43.867us, max 43.867us, min 43.867us
+                - MemoryUsage: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - MemoryUsagePeak: sum 620.00 KB, avg 620.00 KB, max 620.00 KB, min 620.00 KB
+                - RowsProduced: sum 1, avg 1, max 1, min 1
+             CustomCounters:
+                - WaitForDependencyTime: avg 0ns, max 0ns, min 0ns
+                  - WaitForData0: avg 3.91ms, max 3.91ms, min 3.91ms
+       Fragment 1:
+         Pipeline 0(instance_num=1):
+            - WaitWorkerTime: avg 22.128us, max 22.128us, min 22.128us
+           DATA_STREAM_SINK_OPERATOR(dest_id=1):
+             CommonCounters:
+                - ExecTime: avg 105.642us, max 105.642us, min 105.642us
+                - InputRows: sum 1, avg 1, max 1, min 1
+                - MemoryUsage: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - MemoryUsagePeak: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - WaitForDependencyTime: avg 0ns, max 0ns, min 0ns
+                  - WaitForRpcBufferQueue: avg 0ns, max 0ns, min 0ns
+             CustomCounters:
+                - BlocksProduced: sum 1, avg 1, max 1, min 1
+                - OverallThroughput: sum 0.0 /sec, avg 0.0 /sec, max 0.0 /sec, min 0.0 /sec
+           OLAP_SCAN_OPERATOR(nereids_id=77. table_name=store_sales(store_sales))(id=0):
+              - PlanInfo
+                 - TABLE: tpcds.store_sales(store_sales), PREAGGREGATION: ON
+                 - partitions=1/1 (store_sales)
+                 - tablets=10/10, tabletList=1766065578754,1766065578756,1766065578758 ...
+                 - cardinality=1, avgRowSize=204.06679, numNodes=1
+                 - pushAggOp=NONE
+                 - limit: 1
+             CommonCounters:
+                - BlocksProduced: sum 1, avg 1, max 1, min 1
+                - ExecTime: avg 3.155ms, max 3.155ms, min 3.155ms
+                - MemoryUsage: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - MemoryUsagePeak: sum 0.00 , avg 0.00 , max 0.00 , min 0.00 
+                - RowsProduced: sum 1, avg 1, max 1, min 1
+                - WaitForDependency[OLAP_SCAN_OPERATOR_DEPENDENCY]Time: avg 2.803ms, max 2.803ms, min 2.803ms
+             CustomCounters:
+                - RuntimeFilterInfo: sum , avg , max , min 
+                - ScanBytes: sum 1.51 MB, avg 1.51 MB, max 1.51 MB, min 1.51 MB
+                - ScanRows: sum 4.064K (4064), avg 4.064K (4064), max 4.064K (4064), min 4.064K (4064)
+
+DetailProfile(af3662951b1149f2-bcd99115180f7329):
+  Fragments:
+    Fragment 0:
+      FragmentLevelProfile:(host=TNetworkAddress(hostname:172.20.32.136, port:9455)):
+      Pipeline 0(host=TNetworkAddress(hostname:172.20.32.136, port:9455)):
+        PipelineTask(index=0):
+           - TaskState: FINALIZED
+           - BlockedByDependency: 
+           - WakeUpEarly: 0
+           - WaitWorkerTime: 194.646us
+          RESULT_SINK_OPERATOR(id=2147483647):
+            CommonCounters:
+               - ExecTime: 151.916us
+               - InputRows: 1
+               - MemoryUsage: 0.00 
+               - MemoryUsagePeak: 0.00 
+               - WaitForDependency[RESULT_SINK_OPERATOR_DEPENDENCY]Time: 0ns
+            CustomCounters:
+               - WaitForDependencyTime: 0ns
+          EXCHANGE_OPERATOR(id=1):
+            CommonCounters:
+               - BlocksProduced: 1
+               - ExecTime: 43.867us
+               - MemoryUsage: 0.00 
+               - MemoryUsagePeak: 620.00 KB
+               - RowsProduced: 1
+            CustomCounters:
+               - InstanceID: af3662951b1149f2-bcd99115180f735f
+               - WaitForDependencyTime: 0ns
+                 - WaitForData0: 3.91ms
+    Fragment 1:
+      FragmentLevelProfile:(host=TNetworkAddress(hostname:172.20.32.136, port:9455)):
+      Pipeline 0(host=TNetworkAddress(hostname:172.20.32.136, port:9455)):
+        PipelineTask(index=0):
+           - TaskState: FINALIZED
+           - BlockedByDependency: 
+           - WakeUpEarly: 0
+           - WaitWorkerTime: 22.128us
+          DATA_STREAM_SINK_OPERATOR(dest_id=1):
+            CommonCounters:
+               - ExecTime: 105.642us
+               - InputRows: 1
+               - MemoryUsage: 0.00 
+               - MemoryUsagePeak: 0.00 
+               - WaitForDependencyTime: 0ns
+                 - WaitForRpcBufferQueue: 0ns
+            CustomCounters:
+               - BlocksProduced: 1
+               - OverallThroughput: 0.0 /sec
+          OLAP_SCAN_OPERATOR(nereids_id=77. table_name=store_sales(store_sales))(id=0):
+            CommonCounters:
+               - BlocksProduced: 1
+               - ExecTime: 3.155ms
+               - MemoryUsage: 0.00 
+               - MemoryUsagePeak: 0.00 
+               - RowsProduced: 1
+               - WaitForDependency[OLAP_SCAN_OPERATOR_DEPENDENCY]Time: 2.803ms
+            CustomCounters:
+               - TopNFilterSourceNodeIds: 
+               - PushDownPredicates: []
+               - KeyRanges: ScanKeys:ScanKey=[null(-9223372036854775808) : 9223372036854775807]
+               - TabletIds: [1766065578754, 1766065578756, 1766065578758, 1766065578760, 1766065578762, 1766065578764, 1766065578766, 1766065578768, 1766065578770, 1766065578772]
+               - RuntimeFilterInfo: 
+               - ScanBytes: 1.51 MB
+               - ScanRows: 4.064K (4064)
+              Scanner:
+                 - ReadColumns: [ss_sold_date_sk, ss_sold_time_sk, ss_item_sk, ss_customer_sk, ss_cdemo_sk, ss_hdemo_sk, ss_addr_sk, ss_store_sk, ss_promo_sk, ss_ticket_number, ss_quantity
+, ss_wholesale_cost, ss_list_price, ss_sales_price, ss_ext_discount_amt, ss_ext_sales_price, ss_ext_wholesale_cost, ss_ext_list_price, ss_ext_tax, ss_coupon_amt, ss_net_paid, ss_net_paid_inc_tax
+, ss_net_profit]
+                 - PerScannerRunningTime: [0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 3.009us, ]
+                 - PerScannerRowsRead: [0, 0, 0, 0, 0, 0, 0, 0, 0, 4.06K, ]
+                 - PerScannerWaitTime: [0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 9.917us, 15.928us, ]
+                 - PerScannerProjectionTime: [0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, 0.000ns, ]
+                 - EOS: True
+                SegmentIterator:
+                IndexFilter:
+  LoadChannels:
+
+Appendix:
+
+PhysicalPlan:
+PhysicalResultSink[93] ( outputExprs=[ss_sold_date_sk#0, ss_sold_time_sk#1, ss_item_sk#2, ss_customer_sk#3, ss_cdemo_sk#4, ss_hdemo_sk#5, ss_addr_sk#6, ss_store_sk#7, ss_promo_sk#8, ss_ticket_number#9, ss_quantity#10, ss_wholesale_cost#11, ss_list_price#12, ss_sales_price#13, ss_ext_discount_amt#14, ss_ext_sales_price#15, ss_ext_wholesale_cost#16, ss_ext_list_price#17, ss_ext_tax#18, ss_coupon_amt#19, ss_net_paid#20, ss_net_paid_inc_tax#21, ss_net_profit#22] )
+     +--PhysicalLimit[89]@2 ( limit=1, offset=0, phase=GLOBAL, stats=1 )
+        +--PhysicalDistribute[85]@1 ( stats=1, distributionSpec=DistributionSpecGather )
+           +--PhysicalLimit[81]@1 ( limit=1, offset=0, phase=LOCAL, stats=1 )
+              +--PhysicalOlapScan[store_sales]@0 ( stats=2,880,404 actualRows=1, operativeSlots=[], virtualColumns=[] )
+     PhysicalOlapScan[store_sales]@0 ( stats=2,880,404 actualRows=1, operativeSlots=[], virtualColumns=[] )
+       ss_sold_date_sk#0 -> ndv=1820.0000, min=2450816.000000(2450816), max=2452642.000000(2452642), count=2880404.0000, numNulls=130093.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_sold_time_sk#1 -> ndv=46090.0000, min=28800.000000(28800), max=75599.000000(75599), count=2880404.0000, numNulls=129637.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_item_sk#2 -> ndv=18176.0000, min=1.000000(1), max=18000.000000(18000), count=2880404.0000, numNulls=0.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_customer_sk#3 -> ndv=92400.0000, min=1.000000(1), max=100000.000000(100000), count=2880404.0000, numNulls=129752.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_cdemo_sk#4 -> ndv=224523.0000, min=15.000000(15), max=1920797.000000(1920797), count=2880404.0000, numNulls=129700.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_hdemo_sk#5 -> ndv=7251.0000, min=1.000000(1), max=7200.000000(7200), count=2880404.0000, numNulls=129847.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_addr_sk#6 -> ndv=50127.0000, min=1.000000(1), max=50000.000000(50000), count=2880404.0000, numNulls=129975.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_store_sk#7 -> ndv=6.0000, min=1.000000(1), max=10.000000(10), count=2880404.0000, numNulls=130034.0000, avgSizeByte=8.000000, hotValues=(10:0.17;8:0.17;4:0.17;7:0.17;2:0.17;1:0.17)
+       ss_promo_sk#8 -> ndv=297.0000, min=1.000000(1), max=300.000000(300), count=2880404.0000, numNulls=129484.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_ticket_number#9 -> ndv=241382.0000, min=1.000000(1), max=240000.000000(240000), count=2880404.0000, numNulls=0.0000, avgSizeByte=8.000000, hotValues=(null)
+       ss_quantity#10 -> ndv=100.0000, min=1.000000(1), max=100.000000(100), count=2880404.0000, numNulls=129996.0000, avgSizeByte=4.000000, hotValues=(null)
+       ss_wholesale_cost#11 -> ndv=9905.0000, min=1.000000(1.00), max=100.000000(100.00), count=2880404.0000, numNulls=130023.0000, avgSizeByte=4.000000, hotValues=(null)
+       ss_list_price#12 -> ndv=19620.0000, min=1.000000(1.00), max=200.000000(200.00), count=2880404.0000, numNulls=130003.0000, avgSizeByte=4.000000, hotValues=(null)
+       ss_sales_price#13 -> ndv=18624.0000, min=0.000000(0.00), max=199.560000(199.56), count=2880404.0000, numNulls=129666.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.01)
+       ss_ext_discount_amt#14 -> ndv=207600.0000, min=0.000000(0.00), max=17588.250000(17588.25), count=2880404.0000, numNulls=129838.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.8)
+       ss_ext_sales_price#15 -> ndv=407421.0000, min=0.000000(0.00), max=19562.400000(19562.40), count=2880404.0000, numNulls=130327.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.01)
+       ss_ext_wholesale_cost#16 -> ndv=380234.0000, min=1.000000(1.00), max=10000.000000(10000.00), count=2880404.0000, numNulls=130044.0000, avgSizeByte=4.000000, hotValues=(null)
+       ss_ext_list_price#17 -> ndv=579303.0000, min=1.120000(1.12), max=19984.000000(19984.00), count=2880404.0000, numNulls=129933.0000, avgSizeByte=4.000000, hotValues=(null)
+       ss_ext_tax#18 -> ndv=78926.0000, min=0.000000(0.00), max=1749.870000(1749.87), count=2880404.0000, numNulls=130410.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.11)
+       ss_coupon_amt#19 -> ndv=207600.0000, min=0.000000(0.00), max=17588.250000(17588.25), count=2880404.0000, numNulls=129838.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.8)
+       ss_net_paid#20 -> ndv=456677.0000, min=0.000000(0.00), max=19562.400000(19562.40), count=2880404.0000, numNulls=129397.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.01)
+       ss_net_paid_inc_tax#21 -> ndv=617667.0000, min=0.000000(0.00), max=21192.870000(21192.87), count=2880404.0000, numNulls=130022.0000, avgSizeByte=4.000000, hotValues=(0.000000000:0.01)
+       ss_net_profit#22 -> ndv=564160.0000, min=-9969.530000(-9969.53), max=9731.700000(9731.70), count=2880404.0000, numNulls=130267.0000, avgSizeByte=4.000000, hotValues=(null)
+     

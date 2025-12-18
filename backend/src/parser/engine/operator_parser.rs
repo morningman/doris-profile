@@ -9,8 +9,13 @@ use std::collections::HashMap;
 
 /// Regex for operator header: "OPERATOR_NAME(nereids_id=X)(id=Y):" or "OPERATOR_NAME(id=Y):"
 /// Also handles special cases like "FILE_SCAN_OPERATOR (id=20. nereids_id=1791. table name = web_sales):"
+/// And "OLAP_SCAN_OPERATOR(nereids_id=967. table_name=date_dim(date_dim))(id=0):"
+/// Uses a more flexible pattern to handle nested parentheses in table names
 static OPERATOR_HEADER_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\s*([A-Z][A-Z0-9_]*(?:_OPERATOR)?)\s*(?:\(nereids_id=(\d+)\))?\s*\(id=(-?\d+)").unwrap()
+    // Match operator name, optional (stuff including nereids_id=NNN), then (id=NNN)
+    // The [^(]* allows matching content before potential nested parens
+    // (?:\([^)]*\))? optionally matches nested parens like (date_dim)
+    Regex::new(r"^\s*([A-Z][A-Z0-9_]*(?:_OPERATOR)?)\s*(?:\([^(]*nereids_id=(\d+)(?:[^(]*(?:\([^)]*\))?[^)]*)*\))?\s*\(id=(-?\d+)").unwrap()
 });
 
 /// Alternative regex for operators with different format
@@ -311,11 +316,33 @@ impl OperatorParser {
     
     /// Extract table name from operator header
     fn extract_table_name(header: &str) -> Option<String> {
+        // Try "table name = xxx" format (with spaces)
         if let Some(pos) = header.find("table name = ") {
             let rest = &header[pos + 13..];
             let end = rest.find(')').unwrap_or(rest.len());
             return Some(rest[..end].trim().to_string());
         }
+        
+        // Try "table_name=xxx" format (with underscore, no spaces)
+        if let Some(pos) = header.find("table_name=") {
+            let rest = &header[pos + 11..];
+            // Find the end - could be ')', '.' or end of string
+            let mut end = rest.len();
+            if let Some(paren_pos) = rest.find(')') {
+                // Check if there's a nested parenthesis (like "date_dim(date_dim)")
+                let before_paren = &rest[..paren_pos];
+                if let Some(open_paren) = before_paren.rfind('(') {
+                    // Include the nested parenthesis
+                    if let Some(close_paren) = rest[open_paren..].find(')') {
+                        end = open_paren + close_paren + 1;
+                    }
+                } else {
+                    end = paren_pos;
+                }
+            }
+            return Some(rest[..end].trim().to_string());
+        }
+        
         None
     }
     
