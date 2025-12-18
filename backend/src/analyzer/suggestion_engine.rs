@@ -13,13 +13,22 @@ impl SuggestionEngine {
         profile: &Profile,
         ai_service: Option<&AiDiagnosisService>,
         default_config: &DefaultSuggestionsConfig,
+        skip_ai: bool,  // If true, only use default suggestions
     ) {
         for hotspot in hotspots.iter_mut() {
             // Find corresponding node
             if let Some(ref tree) = profile.execution_tree {
                 if let Some(node) = tree.nodes.iter().find(|n| n.id == hotspot.node_id) {
                     // Try to use AI to generate suggestion
-                    let (suggestion, source) = if let Some(ai) = ai_service {
+                    let (suggestion, source) = if skip_ai {
+                        // Skip AI, use default suggestions
+                        let default_suggestion = Self::get_default_suggestion(
+                            &hotspot.operator_name, 
+                            &hotspot.severity, 
+                            default_config
+                        );
+                        (default_suggestion, "default".to_string())
+                    } else if let Some(ai) = ai_service {
                         if ai.is_enabled() {
                             match ai.generate_suggestion(node, profile).await {
                                 Ok(s) => {
@@ -58,6 +67,15 @@ impl SuggestionEngine {
                 }
             }
         }
+    }
+    
+    /// Get default suggestion from configuration file (public version)
+    pub fn get_default_suggestion_public(
+        operator_name: &str,
+        severity: &HotspotSeverity,
+        config: &DefaultSuggestionsConfig,
+    ) -> String {
+        Self::get_default_suggestion(operator_name, severity, config)
     }
     
     /// Get default suggestion from configuration file

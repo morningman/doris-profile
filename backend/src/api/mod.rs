@@ -18,6 +18,20 @@ struct AnalyzeResponse {
     data: Option<crate::models::ProfileAnalysisResponse>,
 }
 
+#[derive(Deserialize)]
+struct DiagnoseNodeRequest {
+    profile_text: String,
+    node_id: String,
+}
+
+#[derive(Serialize)]
+struct DiagnoseNodeResponse {
+    success: bool,
+    error: Option<String>,
+    suggestion: Option<String>,
+    suggestion_source: Option<String>,
+}
+
 #[derive(Clone)]
 struct AppState {
     ai_service: Option<Arc<AiDiagnosisService>>,
@@ -65,10 +79,20 @@ pub async fn start_server(
         .and(state_filter.clone())
         .and_then(handle_analyze_profile_file);
 
+    // Diagnose single node with AI
+    let diagnose_node = warp::path("api")
+        .and(warp::path("diagnose-node"))
+        .and(warp::post())
+        .and(warp::body::content_length_limit(1024 * 1024 * 50))
+        .and(warp::body::json())
+        .and(state_filter.clone())
+        .and_then(handle_diagnose_node);
+
     // API routes
     let api_routes = health
         .or(analyze_profile_json)
-        .or(analyze_profile_file);
+        .or(analyze_profile_file)
+        .or(diagnose_node);
 
     // Static file serving for frontend
     let static_routes = warp::get()
@@ -127,12 +151,13 @@ async fn analyze_profile_with_ai(
     // 2. Detect hotspots
     let mut hotspots = HotSpotDetector::analyze(&profile);
     
-    // 3. Fill suggestions using AI or default config
+    // 3. Fill suggestions with default config only (skip AI for initial load)
     SuggestionEngine::fill_suggestions(
         &mut hotspots,
         &profile,
         state.ai_service.as_deref(),
         &state.default_config,
+        true,  // skip_ai = true for initial analysis
     ).await;
     
     // 4. Generate conclusion and score
@@ -199,6 +224,81 @@ async fn handle_analyze_profile_file(
             };
             Ok(warp::reply::json(&response))
         }
+    }
+}
+
+async fn handle_diagnose_node(
+    req: DiagnoseNodeRequest,
+    state: Arc<AppState>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    match diagnose_single_node(&req.profile_text, &req.node_id, &state).await {
+        Ok((suggestion, source)) => {
+            let response = DiagnoseNodeResponse {
+                success: true,
+                error: None,
+                suggestion: Some(suggestion),
+                suggestion_source: Some(source),
+            };
+            Ok(warp::reply::json(&response))
+        }
+        Err(err) => {
+            let response = DiagnoseNodeResponse {
+                success: false,
+                error: Some(err),
+                suggestion: None,
+                suggestion_source: None,
+            };
+            Ok(warp::reply::json(&response))
+        }
+    }
+}
+
+async fn diagnose_single_node(
+    profile_text: &str,
+    node_id: &str,
+    state: &AppState,
+) -> Result<(String, String), String> {
+    // 1. Parse profile
+    let mut composer = ProfileComposer::new();
+    let profile = composer.parse(profile_text)
+        .map_err(|e| format!("Failed to parse profile: {:?}", e))?;
+    
+    // 2. Find the node in execution tree
+    let tree = profile.execution_tree.as_ref()
+        .ok_or_else(|| "No execution tree found".to_string())?;
+    
+    let node = tree.nodes.iter()
+        .find(|n| n.id == node_id)
+        .ok_or_else(|| format!("Node {} not found", node_id))?;
+    
+    // 3. Try to get AI suggestion
+    if let Some(ref ai_service) = state.ai_service {
+        if ai_service.is_enabled() {
+            match ai_service.generate_suggestion(node, &profile).await {
+                Ok(suggestion) => {
+                    return Ok((suggestion, "ai".to_string()));
+                }
+                Err(e) => {
+                    let error_msg = format!("AI Suggestion failed: {}", e);
+                    eprintln!("{} for node {}", error_msg, node_id);
+                    // Fall through to default suggestion
+                }
+            }
+        }
+    }
+    
+    // 4. Use default suggestion as fallback
+    // Find corresponding hotspot to get operator name and severity
+    let hotspots = HotSpotDetector::analyze(&profile);
+    if let Some(hotspot) = hotspots.iter().find(|h| h.node_id == node_id) {
+        let default_suggestion = SuggestionEngine::get_default_suggestion_public(
+            &hotspot.operator_name,
+            &hotspot.severity,
+            &state.default_config,
+        );
+        Ok((default_suggestion, "AI Suggestion is not enabled".to_string()))
+    } else {
+        Err(format!("Hotspot for node {} not found", node_id))
     }
 }
 

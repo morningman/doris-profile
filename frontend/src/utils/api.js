@@ -34,5 +34,15 @@ export const checkHealth = async () => {
   return response.data;
 };
 
+export const diagnoseNode = async (profileText, nodeId) => {
+  const response = await api.post("/api/diagnose-node", {
+    profile_text: profileText,
+    node_id: nodeId,
+  }, {
+    timeout: 60000,  // 60 seconds timeout for AI requests
+  });
+  return response.data;
+};
+
 export default api;
 

@@ -20,6 +20,7 @@ export default createStore({
     summary: (state) => state.analysisResult?.summary || null,
     performanceScore: (state) => state.analysisResult?.performance_score || 0,
     conclusion: (state) => state.analysisResult?.conclusion || "",
+    profileText: (state) => state.profileText,
   },
 
   mutations: {
@@ -39,6 +40,16 @@ export default createStore({
       state.analysisResult = null;
       state.error = null;
       state.profileText = "";
+    },
+    UPDATE_HOTSPOT(state, updatedHotspot) {
+      if (state.analysisResult && state.analysisResult.hotspots) {
+        const index = state.analysisResult.hotspots.findIndex(
+          h => h.node_id === updatedHotspot.node_id
+        );
+        if (index !== -1) {
+          state.analysisResult.hotspots[index] = updatedHotspot;
+        }
+      }
     },
   },
 
@@ -76,6 +87,10 @@ export default createStore({
       commit("SET_ERROR", null);
 
       try {
+        // Read file content to store it
+        const fileContent = await file.text();
+        commit("SET_PROFILE_TEXT", fileContent);
+        
         const formData = new FormData();
         formData.append("file", file);
 

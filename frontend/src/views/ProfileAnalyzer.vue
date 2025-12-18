@@ -129,7 +129,13 @@
               {{ hotspots.length }} issue(s)
             </span>
           </div>
-          <HotSpotsPanel :hotspots="hotspots" :suggestions="suggestions" @node-click="handleHotspotNodeClick" />
+          <HotSpotsPanel 
+            :hotspots="hotspots" 
+            :suggestions="suggestions" 
+            :profile-text="profileText"
+            @node-click="handleHotspotNodeClick"
+            @hotspot-updated="handleHotspotUpdated" 
+          />
         </div>
       </div>
     </div>
@@ -172,6 +178,7 @@ export default {
     const summary = computed(() => store.getters.summary);
     const performanceScore = computed(() => store.getters.performanceScore);
     const conclusion = computed(() => store.getters.conclusion);
+    const profileText = computed(() => store.getters.profileText);
 
     const fragmentCount = computed(() => {
       if (!executionTree.value?.nodes) return 0;
@@ -254,12 +261,17 @@ export default {
       }
     };
 
+    const handleHotspotUpdated = (updatedHotspot) => {
+      store.commit("UPDATE_HOTSPOT", updatedHotspot);
+    };
+
     return {
       activeTab,
       showDebug,
       debugTab,
       copySuccess,
       dagVisualization,
+      profileText,
       hasResult,
       isLoading,
       error,
@@ -279,6 +291,7 @@ export default {
       handleReset,
       clearError,
       handleHotspotNodeClick,
+      handleHotspotUpdated,
     };
   },
 };

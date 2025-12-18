@@ -28,7 +28,22 @@
         </div>
         <div class="hotspot-path">{{ hotspot.node_path }}</div>
         <div class="hotspot-description">{{ hotspot.description }}</div>
-        <div v-if="hotspot.suggestion_source && hotspot.suggestion_source !== 'ai'" class="suggestion-status-warning">
+        
+        <!-- AI Diagnosis Button -->
+        <div v-if="hotspot.suggestion_source === 'default'" class="ai-diagnosis-section">
+          <button 
+            class="ai-diagnosis-btn"
+            :class="{ 'loading': diagnosingNodes[hotspot.node_id] }"
+            :disabled="diagnosingNodes[hotspot.node_id]"
+            @click.stop="diagnoseWithAI(hotspot)"
+          >
+            <i v-if="!diagnosingNodes[hotspot.node_id]" class="fas fa-brain"></i>
+            <i v-else class="fas fa-spinner fa-spin"></i>
+            {{ diagnosingNodes[hotspot.node_id] ? 'Diagnosing...' : 'AI Diagnosis' }}
+          </button>
+        </div>
+        
+        <div v-if="hotspot.suggestion_source && hotspot.suggestion_source !== 'ai' && hotspot.suggestion_source !== 'default'" class="suggestion-status-warning">
           <i class="fas fa-exclamation-circle"></i>
           {{ hotspot.suggestion_source }}
         </div>
@@ -67,6 +82,9 @@
 </template>
 
 <script>
+import { ref } from 'vue';
+import { diagnoseNode } from '@/utils/api';
+
 export default {
   name: "HotSpotsPanel",
   props: {
@@ -78,9 +96,15 @@ export default {
       type: Array,
       default: () => [],
     },
+    profileText: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['node-click'],
+  emits: ['node-click', 'hotspot-updated'],
   setup(props, { emit }) {
+    const diagnosingNodes = ref({});
+    
     const priorityClass = (priority) => {
       switch (priority) {
         case "Critical":
@@ -113,10 +137,42 @@ export default {
       emit('node-click', hotspot.node_id);
     };
 
+    const diagnoseWithAI = async (hotspot) => {
+      if (!props.profileText) {
+        console.error('No profile text available');
+        return;
+      }
+      
+      // Mark as diagnosing
+      diagnosingNodes.value[hotspot.node_id] = true;
+      
+      try {
+        const result = await diagnoseNode(props.profileText, hotspot.node_id);
+        
+        if (result.success) {
+          // Update the hotspot with AI suggestion
+          const updatedHotspot = {
+            ...hotspot,
+            suggestion: result.suggestion,
+            suggestion_source: result.suggestion_source,
+          };
+          emit('hotspot-updated', updatedHotspot);
+        } else {
+          console.error('Diagnosis failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to diagnose node:', error);
+      } finally {
+        diagnosingNodes.value[hotspot.node_id] = false;
+      }
+    };
+
     return {
       priorityClass,
       categoryIcon,
       handleNodeClick,
+      diagnoseWithAI,
+      diagnosingNodes,
     };
   },
 };
@@ -236,6 +292,50 @@ export default {
   color: var(--text-secondary);
   font-size: 13px;
   margin-bottom: 8px;
+}
+
+.ai-diagnosis-section {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.ai-diagnosis-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  &.loading {
+    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  }
+  
+  i {
+    font-size: 14px;
+  }
 }
 
 .suggestion-status-warning {
