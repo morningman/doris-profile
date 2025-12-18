@@ -2,41 +2,30 @@
   <div class="dag-visualization">
     <!-- View Mode Toggle -->
     <div class="view-controls">
-      <button 
-        :class="['view-btn', { active: viewMode === 'graph' }]"
-        @click="viewMode = 'graph'"
-      >
-        📊 Graph View
-      </button>
-      <button 
-        :class="['view-btn', { active: viewMode === 'table' }]"
-        @click="viewMode = 'table'"
-      >
-        📋 Table
-      </button>
-      <button 
-        :class="['view-btn', { active: viewMode === 'tree' }]"
-        @click="viewMode = 'tree'"
-      >
-        🌲 Fragment Tree
-      </button>
-      <button 
-        :class="['view-btn', { active: viewMode === 'pipeline' }]"
-        @click="viewMode = 'pipeline'"
-      >
-        📦 Pipeline View
-      </button>
-      <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
-    </div>
-
-    <div v-if="!hasNodes" class="no-data">
-      <p>No execution tree data available</p>
-    </div>
-    
-    <!-- Graph View (SVG DAG Visualization) -->
-    <div v-else-if="viewMode === 'graph'" class="graph-view-container">
-      <!-- 工具栏 -->
-      <div class="dag-toolbar">
+      <div class="view-tabs">
+        <button 
+          :class="['view-btn', { active: viewMode === 'graph' }]"
+          @click="viewMode = 'graph'"
+        >
+          📊 Graph View
+        </button>
+        <button 
+          :class="['view-btn', { active: viewMode === 'table' }]"
+          @click="viewMode = 'table'"
+        >
+          📋 Table
+        </button>
+        <button 
+          :class="['view-btn', { active: viewMode === 'pipeline' }]"
+          @click="viewMode = 'pipeline'"
+        >
+          📦 Pipeline View
+        </button>
+        <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
+      </div>
+      
+      <!-- 工具栏按钮 -->
+      <div v-if="viewMode === 'graph'" class="view-toolbar">
         <button @click="zoomIn" class="toolbar-btn" title="放大">
           <i class="fas fa-search-plus"></i>
         </button>
@@ -50,7 +39,14 @@
           <i class="fas fa-redo"></i>
         </button>
       </div>
+    </div>
 
+    <div v-if="!hasNodes" class="no-data">
+      <p>No execution tree data available</p>
+    </div>
+    
+    <!-- Graph View (SVG DAG Visualization) -->
+    <div v-else-if="viewMode === 'graph'" class="graph-view-container">
       <!-- SVG 画布 -->
       <div class="svg-wrapper">
         <svg
@@ -264,26 +260,6 @@
       </div>
     </div>
 
-    <!-- Fragment Tree View -->
-    <div v-else-if="viewMode === 'tree'" class="tree-view">
-      <div class="tree-legend">
-        <span class="legend-item"><span class="dot" style="background:#e74c3c"></span> Hotspot (&gt;30%)</span>
-        <span class="legend-item"><span class="dot" style="background:#f39c12"></span> High (15-30%)</span>
-        <span class="legend-item"><span class="dot" style="background:#9b59b6"></span> SCAN</span>
-        <span class="legend-item"><span class="dot" style="background:#e67e22"></span> JOIN</span>
-        <span class="legend-item"><span class="dot" style="background:#1abc9c"></span> AGG</span>
-      </div>
-      <div class="fragment-tree">
-        <FragmentTreeNode 
-          :fragment="rootFragment" 
-          :fragmentTree="fragmentTree"
-          :nodesByFragment="nodesByFragment"
-          :getNodeColor="getNodeColor"
-          :depth="0"
-        />
-      </div>
-    </div>
-
     <!-- Pipeline View -->
     <div v-else-if="viewMode === 'pipeline'" class="pipeline-view">
       <div v-for="fragId in fragmentIds" :key="fragId" class="fragment-section">
@@ -314,58 +290,8 @@
 </template>
 
 <script>
-import { ref, computed, h, defineComponent } from "vue";
-
-// Recursive Fragment Tree Node Component
-const FragmentTreeNode = defineComponent({
-  name: 'FragmentTreeNode',
-  props: ['fragment', 'fragmentTree', 'nodesByFragment', 'getNodeColor', 'depth'],
-  setup(props) {
-    const isExpanded = ref(true);
-    const toggle = () => { isExpanded.value = !isExpanded.value; };
-    const children = computed(() => props.fragmentTree[props.fragment] || []);
-    const nodes = computed(() => props.nodesByFragment[props.fragment] || []);
-    
-    return () => {
-      const indent = props.depth * 24;
-      return h('div', { class: 'fragment-node', style: { marginLeft: `${indent}px` } }, [
-        h('div', { 
-          class: 'fragment-header',
-          onClick: toggle 
-        }, [
-          h('span', { class: 'toggle-icon' }, isExpanded.value ? '▼' : '▶'),
-          h('span', { class: 'fragment-icon' }, '📁'),
-          h('span', { class: 'fragment-name' }, props.fragment),
-          h('span', { class: 'fragment-node-count' }, `${nodes.value.length} nodes`)
-        ]),
-        isExpanded.value && nodes.value.length > 0 && h('div', { class: 'fragment-nodes' },
-          nodes.value.map(node => h('div', { 
-            class: ['node-item', { hotspot: node.is_hotspot }],
-            key: node.id 
-          }, [
-            h('span', { class: 'node-dot', style: { background: props.getNodeColor(node) } }),
-            h('span', { class: 'node-op-name' }, node.operator_name),
-            node.time_percentage > 1 && h('span', { class: 'node-pct' }, `${node.time_percentage.toFixed(1)}%`)
-          ]))
-        ),
-        isExpanded.value && children.value.length > 0 && h('div', { class: 'fragment-children' },
-          children.value.map(childFrag => h(FragmentTreeNode, {
-            key: childFrag,
-            fragment: childFrag,
-            fragmentTree: props.fragmentTree,
-            nodesByFragment: props.nodesByFragment,
-            getNodeColor: props.getNodeColor,
-            depth: props.depth + 1
-          }))
-        )
-      ]);
-    };
-  }
-});
-
 export default {
   name: 'DAGVisualization',
-  components: { FragmentTreeNode },
   props: {
     tree: { type: Object, required: true }
   },
@@ -432,44 +358,6 @@ export default {
       });
       return map;
     },
-    fragmentTree() {
-      const tree = {};
-      if (!this.hasNodes) return tree;
-      
-      // Build fragment parent-child relationships from DATA_STREAM_SINK -> EXCHANGE connections
-      this.tree.nodes.forEach(node => {
-        if (node.operator_name && node.operator_name.includes('DATA_STREAM_SINK')) {
-          // This node sends data, find its EXCHANGE children
-          if (node.children && node.children.length > 0) {
-            node.children.forEach(childId => {
-              const child = this.tree.nodes.find(n => n.id === childId);
-              if (child && child.operator_name && child.operator_name.includes('EXCHANGE') && !child.operator_name.includes('LOCAL')) {
-                // Child is in different fragment
-                const parentFrag = node.fragment_id;
-                const childFrag = child.fragment_id;
-                if (parentFrag && childFrag && parentFrag !== childFrag) {
-                  if (!tree[parentFrag]) tree[parentFrag] = [];
-                  if (!tree[parentFrag].includes(childFrag)) {
-                    tree[parentFrag].push(childFrag);
-                  }
-                }
-              }
-            });
-          }
-        }
-      });
-      return tree;
-    },
-    rootFragment() {
-      // Find fragment with no parent
-      const allFragments = this.fragmentIds;
-      const childFragments = new Set();
-      Object.values(this.fragmentTree).forEach(children => {
-        children.forEach(child => childFragments.add(child));
-      });
-      const root = allFragments.find(f => !childFragments.has(f));
-      return root || (allFragments.length > 0 ? allFragments[0] : null);
-    }
   },
   watch: {
     tree: {
@@ -1164,12 +1052,24 @@ export default {
 
 .view-controls {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
-  align-items: center;
   flex-shrink: 0;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.view-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .view-btn {
@@ -1215,18 +1115,6 @@ export default {
   overflow: hidden;
 }
 
-.dag-toolbar {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 100;
-  display: flex;
-  gap: 8px;
-  background: white;
-  padding: 8px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
 
 .toolbar-btn {
   width: 36px;
