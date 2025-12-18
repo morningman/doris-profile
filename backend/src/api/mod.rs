@@ -22,6 +22,12 @@ struct AnalyzeResponse {
 struct DiagnoseNodeRequest {
     profile_text: String,
     node_id: String,
+    #[serde(default = "default_language")]
+    language: String,
+}
+
+fn default_language() -> String {
+    "en".to_string()
 }
 
 #[derive(Serialize)]
@@ -231,7 +237,7 @@ async fn handle_diagnose_node(
     req: DiagnoseNodeRequest,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    match diagnose_single_node(&req.profile_text, &req.node_id, &state).await {
+    match diagnose_single_node(&req.profile_text, &req.node_id, &req.language, &state).await {
         Ok((suggestion, source)) => {
             let response = DiagnoseNodeResponse {
                 success: true,
@@ -256,6 +262,7 @@ async fn handle_diagnose_node(
 async fn diagnose_single_node(
     profile_text: &str,
     node_id: &str,
+    language: &str,
     state: &AppState,
 ) -> Result<(String, String), String> {
     // 1. Parse profile
@@ -274,7 +281,7 @@ async fn diagnose_single_node(
     // 3. Try to get AI suggestion
     if let Some(ref ai_service) = state.ai_service {
         if ai_service.is_enabled() {
-            match ai_service.generate_suggestion(node, &profile).await {
+            match ai_service.generate_suggestion_with_language(node, &profile, language).await {
                 Ok(suggestion) => {
                     return Ok((suggestion, "ai".to_string()));
                 }

@@ -28,6 +28,15 @@ impl AiDiagnosisService {
         node: &ExecutionTreeNode,
         profile: &Profile,
     ) -> Result<String, Box<dyn std::error::Error>> {
+        self.generate_suggestion_with_language(node, profile, "zh").await
+    }
+    
+    pub async fn generate_suggestion_with_language(
+        &self,
+        node: &ExecutionTreeNode,
+        profile: &Profile,
+        language: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         // 构建上下文
         let context = ContextBuilder::build_context(
             node,
@@ -35,9 +44,17 @@ impl AiDiagnosisService {
             &self.config.ai_diagnosis.prompt.include_context,
         );
         
+        // 根据语言调整 system message
+        let mut prompt_config = self.config.ai_diagnosis.prompt.clone();
+        if language == "zh" || language == "chinese" {
+            prompt_config.system_message = "You are an expert Doris database performance analyst. Analyze the provided execution plan node and provide specific, actionable optimization suggestions in Chinese. Focus on practical recommendations based on the node's metrics and context.".to_string();
+        } else {
+            prompt_config.system_message = "You are an expert Doris database performance analyst. Analyze the provided execution plan node and provide specific, actionable optimization suggestions in English. Focus on practical recommendations based on the node's metrics and context.".to_string();
+        }
+        
         // 调用 AI
         if let Some(ref client) = self.client {
-            client.get_suggestion(&context, &self.config.ai_diagnosis.prompt).await
+            client.get_suggestion(&context, &prompt_config).await
         } else {
             Err("AI diagnosis not enabled".into())
         }

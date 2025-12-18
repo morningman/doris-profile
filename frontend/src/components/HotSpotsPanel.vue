@@ -41,6 +41,14 @@
             <i v-else class="fas fa-spinner fa-spin"></i>
             {{ diagnosingNodes[hotspot.node_id] ? 'Diagnosing...' : 'AI Diagnosis' }}
           </button>
+          <label class="language-checkbox" @click.stop>
+            <input 
+              type="checkbox" 
+              v-model="useChinese[hotspot.node_id]"
+              :disabled="diagnosingNodes[hotspot.node_id]"
+            />
+            <span>中文</span>
+          </label>
         </div>
         
         <div v-if="hotspot.suggestion_source && hotspot.suggestion_source !== 'ai' && hotspot.suggestion_source !== 'default'" class="suggestion-status-warning">
@@ -113,6 +121,7 @@ export default {
   emits: ['node-click', 'hotspot-updated'],
   setup(props, { emit }) {
     const diagnosingNodes = ref({});
+    const useChinese = ref({});
     
     const priorityClass = (priority) => {
       switch (priority) {
@@ -156,7 +165,9 @@ export default {
       diagnosingNodes.value[hotspot.node_id] = true;
       
       try {
-        const result = await diagnoseNode(props.profileText, hotspot.node_id);
+        // Get language preference (default to English)
+        const language = useChinese.value[hotspot.node_id] ? 'zh' : 'en';
+        const result = await diagnoseNode(props.profileText, hotspot.node_id, language);
         
         if (result.success) {
           // Update the hotspot with AI suggestion
@@ -192,6 +203,7 @@ export default {
       handleNodeClick,
       diagnoseWithAI,
       diagnosingNodes,
+      useChinese,
       renderMarkdown,
     };
   },
@@ -317,7 +329,9 @@ export default {
 .ai-diagnosis-section {
   margin-top: 12px;
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 
 .ai-diagnosis-btn {
@@ -358,6 +372,36 @@ export default {
   }
 }
 
+.language-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  
+  input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: #667eea;
+    
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+  
+  span {
+    font-weight: 500;
+  }
+  
+  &:hover:not(:has(input:disabled)) {
+    color: var(--text-primary);
+  }
+}
+
 .suggestion-status-warning {
   font-size: 11px;
   padding: 6px 10px;
@@ -380,6 +424,8 @@ export default {
   background: rgba(64, 158, 255, 0.05);
   border: 1px solid rgba(64, 158, 255, 0.2);
   position: relative;
+  overflow: hidden;
+  word-wrap: break-word;
 
   .suggestion-header-line {
     display: flex;
@@ -408,6 +454,8 @@ export default {
   .suggestion-content {
     color: var(--text-primary);
     line-height: 1.6;
+    overflow-x: auto;
+    max-width: 100%;
   }
 }
 
@@ -416,6 +464,9 @@ export default {
   font-size: 13px;
   line-height: 1.7;
   color: var(--text-primary);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 
   h1, h2, h3, h4, h5, h6 {
     margin-top: 16px;
@@ -423,6 +474,7 @@ export default {
     font-weight: 600;
     line-height: 1.4;
     color: var(--text-primary);
+    word-break: break-word;
   }
 
   h1 { font-size: 1.6em; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
@@ -433,6 +485,7 @@ export default {
   p {
     margin-top: 0;
     margin-bottom: 12px;
+    word-break: break-word;
   }
 
   ul, ol {
@@ -442,6 +495,7 @@ export default {
 
     li {
       margin-bottom: 6px;
+      word-break: break-word;
     }
   }
 
@@ -456,6 +510,7 @@ export default {
   strong {
     font-weight: 600;
     color: var(--primary-color);
+    word-break: break-word;
   }
 
   em {
@@ -469,6 +524,8 @@ export default {
     font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
     font-size: 0.9em;
     color: #e83e8c;
+    word-break: break-all;
+    white-space: pre-wrap;
   }
 
   pre {
@@ -477,11 +534,16 @@ export default {
     border-radius: 6px;
     overflow-x: auto;
     margin-bottom: 12px;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 
     code {
       padding: 0;
       background: none;
       color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   }
 
