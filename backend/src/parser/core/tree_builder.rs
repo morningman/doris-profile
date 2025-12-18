@@ -63,6 +63,7 @@ impl TreeBuilder {
         // Extract metrics
         let exec_time = OperatorParser::get_exec_time_ns(parsed);
         let rows = OperatorParser::get_rows_produced(parsed);
+        let input_rows = OperatorParser::get_input_rows(parsed);
         let memory = parsed.common_counters.get("MemoryUsagePeak")
             .and_then(|v| {
                 let agg = ValueParser::parse_aggregated(v);
@@ -76,6 +77,7 @@ impl TreeBuilder {
             operator_total_time: exec_time.map(|t| t as u64),
             operator_total_time_raw: exec_time_raw,
             rows_returned: rows.map(|r| r as u64),
+            input_rows: input_rows.map(|r| r as u64),
             memory_used: memory,
             cpu_time: None,
             wait_time: None,

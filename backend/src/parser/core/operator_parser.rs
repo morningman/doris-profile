@@ -328,6 +328,14 @@ impl OperatorParser {
                 agg.sum.or(agg.avg)
             })
     }
+    
+    pub fn get_input_rows(operator: &ParsedOperator) -> Option<i64> {
+        operator.common_counters.get("InputRows")
+            .and_then(|v| {
+                let agg = ValueParser::parse_aggregated(v);
+                agg.sum.or(agg.avg)
+            })
+    }
 }
 
 #[cfg(test)]

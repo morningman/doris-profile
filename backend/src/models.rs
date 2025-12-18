@@ -144,6 +144,9 @@ pub struct OperatorMetrics {
     pub rows_returned: Option<u64>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_rows: Option<u64>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_used: Option<u64>,
     
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -906,6 +906,11 @@ export default {
       return 0;
     },
     getNodeRows(node) {
+      // 对于 SINK 节点，优先使用 input_rows（因为 SINK 节点接收数据但可能不返回数据）
+      if (node?.operator_name && node.operator_name.includes('SINK')) {
+        return node?.metrics?.input_rows || node?.metrics?.rows_returned || 0;
+      }
+      // 对于其他节点，使用 rows_returned
       return node?.metrics?.rows_returned || 0;
     },
     formatRowsSimple(rows) {
