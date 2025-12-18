@@ -125,6 +125,11 @@
                   {{ getJoinType(node) }}
                 </text>
                 
+                <!-- TABLE 名称信息 (仅 SCAN 节点，显示在标题栏内) -->
+                <text v-if="getTableName(node)" class="node-table-name" x="10" :y="33" style="font-size: 9px; fill: rgba(255, 255, 255, 0.9); font-weight: 500;">
+                  Table: {{ getTableName(node) }}
+                </text>
+                
                 <!-- 节点详情 -->
                 <template v-if="node.isMerged">
                   <!-- 合并节点显示两个节点的简化信息 -->
@@ -992,9 +997,32 @@ export default {
       
       return joinOp || null;
     },
+    getTableName(node) {
+      if (!node) return null;
+      
+      // 检查是否是 SCAN 节点
+      const isScanNode = node.operator_name?.includes('SCAN_OPERATOR') || 
+                        node.operator_name?.includes('OLAP_SCAN') ||
+                        node.operator_name?.includes('FILE_SCAN');
+      
+      if (!isScanNode) return null;
+      
+      // 尝试从 table_name 字段获取
+      let tableName = null;
+      
+      if (node.isMerged && node.primaryNode?.table_name) {
+        // 如果是合并节点，从 primaryNode 获取
+        tableName = node.primaryNode.table_name;
+      } else if (node.table_name) {
+        // 普通节点
+        tableName = node.table_name;
+      }
+      
+      return tableName || null;
+    },
     getNodeHeaderHeight(node) {
-      // 如果有 JOIN 类型信息，标题栏高度增加
-      return this.getJoinType(node) ? 42 : this.NODE_HEADER_HEIGHT;
+      // 如果有 JOIN 类型信息或 TABLE 名称信息，标题栏高度增加
+      return (this.getJoinType(node) || this.getTableName(node)) ? 42 : this.NODE_HEADER_HEIGHT;
     },
     getNodeTotalHeight(node) {
       // 总高度 = 标题高度 + body 高度 + progress 高度
