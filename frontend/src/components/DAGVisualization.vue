@@ -900,16 +900,54 @@ export default {
       this.selectedNodeId = null;
       this.selectedNode = null;
     },
-    zoomIn() { this.zoom = Math.min(3, this.zoom * 1.2); },
-    zoomOut() { this.zoom = Math.max(0.3, this.zoom / 1.2); },
+    zoomIn() { 
+      this.zoomAtPoint(this.svgWidth / 2, this.svgHeight / 2, 1.2);
+    },
+    zoomOut() { 
+      this.zoomAtPoint(this.svgWidth / 2, this.svgHeight / 2, 1 / 1.2);
+    },
+    // 在指定点进行缩放
+    zoomAtPoint(pointX, pointY, factor) {
+      // 计算缩放前，该点在内容坐标系中的位置
+      const beforeZoomX = (pointX - this.panX) / this.zoom;
+      const beforeZoomY = (pointY - this.panY) / this.zoom;
+      
+      // 应用缩放
+      const newZoom = Math.min(3, Math.max(0.3, this.zoom * factor));
+      this.zoom = newZoom;
+      
+      // 调整 pan 偏移，使该点保持不变
+      this.panX = pointX - beforeZoomX * newZoom;
+      this.panY = pointY - beforeZoomY * newZoom;
+    },
     fitToScreen() { this.zoom = 0.8; this.panX = 50; this.panY = 50; },
     resetView() { this.zoom = 1; this.panX = 50; this.panY = 50; this.deselectNode(); },
     handleWheel(event) {
-      // 使用更小的缩放步长，让双指缩放更平滑
+      // 获取 SVG 元素和鼠标位置
+      const svg = this.$refs.svgCanvas;
+      if (!svg) return;
+      
+      const rect = svg.getBoundingClientRect();
+      // 鼠标在 SVG 中的位置
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      
+      // 计算缩放前，鼠标点在内容坐标系中的位置
+      const beforeZoomX = (mouseX - this.panX) / this.zoom;
+      const beforeZoomY = (mouseY - this.panY) / this.zoom;
+      
+      // 应用缩放
       const delta = event.deltaY;
       const zoomSensitivity = 0.001; // 降低敏感度
       const zoomChange = -delta * zoomSensitivity;
-      this.zoom = Math.min(3, Math.max(0.3, this.zoom * (1 + zoomChange)));
+      const oldZoom = this.zoom;
+      const newZoom = Math.min(3, Math.max(0.3, this.zoom * (1 + zoomChange)));
+      this.zoom = newZoom;
+      
+      // 计算缩放后，为了保持鼠标点指向的内容不变，需要调整的 pan 偏移
+      // 新的 pan 位置 = 鼠标位置 - (内容坐标 * 新缩放比例)
+      this.panX = mouseX - beforeZoomX * newZoom;
+      this.panY = mouseY - beforeZoomY * newZoom;
     },
     startPan(event) {
       this.isPanning = true;
