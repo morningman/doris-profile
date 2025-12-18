@@ -48,9 +48,11 @@
           {{ hotspot.suggestion_source }}
         </div>
         <div v-if="hotspot.suggestion" class="hotspot-suggestion">
-          <i class="fas fa-lightbulb"></i>
-          <span v-if="hotspot.suggestion_source === 'ai'" class="ai-badge">AI</span>
-          {{ hotspot.suggestion }}
+          <div class="suggestion-header-line">
+            <i class="fas fa-lightbulb"></i>
+            <span v-if="hotspot.suggestion_source === 'ai'" class="ai-badge">AI</span>
+          </div>
+          <div class="suggestion-content markdown-body" v-html="renderMarkdown(hotspot.suggestion)"></div>
         </div>
       </div>
     </div>
@@ -83,7 +85,14 @@
 
 <script>
 import { ref } from 'vue';
+import { marked } from 'marked';
 import { diagnoseNode } from '@/utils/api';
+
+// Configure marked
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 export default {
   name: "HotSpotsPanel",
@@ -167,12 +176,23 @@ export default {
       }
     };
 
+    const renderMarkdown = (text) => {
+      if (!text) return '';
+      try {
+        return marked.parse(text);
+      } catch (error) {
+        console.error('Failed to render markdown:', error);
+        return text;
+      }
+    };
+
     return {
       priorityClass,
       categoryIcon,
       handleNodeClick,
       diagnoseWithAI,
       diagnosingNodes,
+      renderMarkdown,
     };
   },
 };
@@ -353,16 +373,24 @@ export default {
 }
 
 .hotspot-suggestion {
-  font-size: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 8px;
-  background: rgba(64, 158, 255, 0.1);
-  color: var(--primary-color);
+  font-size: 13px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-top: 12px;
+  background: rgba(64, 158, 255, 0.05);
+  border: 1px solid rgba(64, 158, 255, 0.2);
   position: relative;
 
-  i {
-    margin-right: 8px;
+  .suggestion-header-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    
+    i {
+      color: var(--primary-color);
+      font-size: 16px;
+    }
   }
   
   .ai-badge {
@@ -373,10 +401,132 @@ export default {
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
-    margin-right: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    vertical-align: middle;
+  }
+
+  .suggestion-content {
+    color: var(--text-primary);
+    line-height: 1.6;
+  }
+}
+
+// Markdown styles
+.markdown-body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+
+  h1, h2, h3, h4, h5, h6 {
+    margin-top: 16px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  h1 { font-size: 1.6em; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
+  h2 { font-size: 1.4em; border-bottom: 1px solid var(--border-light); padding-bottom: 6px; }
+  h3 { font-size: 1.25em; }
+  h4 { font-size: 1.1em; }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 12px;
+  }
+
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 12px;
+    padding-left: 24px;
+
+    li {
+      margin-bottom: 6px;
+    }
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  code {
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #e83e8c;
+  }
+
+  pre {
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+
+    code {
+      padding: 0;
+      background: none;
+      color: var(--text-primary);
+    }
+  }
+
+  blockquote {
+    margin: 12px 0;
+    padding: 8px 16px;
+    border-left: 4px solid var(--primary-color);
+    background: rgba(64, 158, 255, 0.05);
+    color: var(--text-secondary);
+
+    p {
+      margin-bottom: 0;
+    }
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border-light);
+    margin: 16px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid var(--border-light);
+      text-align: left;
+    }
+
+    th {
+      background: rgba(0, 0, 0, 0.03);
+      font-weight: 600;
+    }
+  }
+
+  a {
+    color: var(--primary-color);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 
