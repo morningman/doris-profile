@@ -1233,16 +1233,33 @@ export default {
     },
     // 定位并居中显示指定节点
     locateAndCenterNode(nodeId) {
-      // 在 renderedNodes 中查找节点
-      const node = this.renderedNodes.find(n => n.id === nodeId);
-      if (!node || !node.x || !node.y) {
+      // 首先在 renderedNodes 中直接查找节点
+      let targetNode = this.renderedNodes.find(n => n.id === nodeId);
+      let actualNodeId = nodeId;
+      
+      // 如果找不到，检查是否是合并节点的子节点
+      if (!targetNode) {
+        for (const node of this.renderedNodes) {
+          if (node.isMerged) {
+            // 检查 primaryNode 或 secondaryNode 的 id 是否匹配
+            if (node.primaryNode?.id === nodeId || node.secondaryNode?.id === nodeId) {
+              targetNode = node;
+              actualNodeId = node.id; // 使用合并节点的 id 进行高亮
+              console.log(`Found node ${nodeId} in merged node ${node.id}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!targetNode || !targetNode.x || !targetNode.y) {
         console.warn(`Node ${nodeId} not found or has no position`);
         return;
       }
       
       // 计算节点中心位置
-      const nodeCenterX = node.x + this.NODE_WIDTH / 2;
-      const nodeCenterY = node.y + this.getNodeTotalHeight(node) / 2;
+      const nodeCenterX = targetNode.x + this.NODE_WIDTH / 2;
+      const nodeCenterY = targetNode.y + this.getNodeTotalHeight(targetNode) / 2;
       
       // 设置合适的缩放级别（如果当前缩放太小）
       const targetZoom = Math.max(this.zoom, 0.8);
@@ -1253,11 +1270,11 @@ export default {
       this.zoom = targetZoom;
       
       // 选中节点
-      this.selectNode(node);
+      this.selectNode(targetNode);
       
-      // 添加视觉反馈：短暂高亮
+      // 添加视觉反馈：短暂高亮（使用实际渲染的节点 ID）
       this.$nextTick(() => {
-        const element = document.querySelector(`[data-node-id="${nodeId}"]`);
+        const element = document.querySelector(`[data-node-id="${actualNodeId}"]`);
         if (element) {
           element.classList.add('node-highlight');
           setTimeout(() => {
