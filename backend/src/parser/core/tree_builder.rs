@@ -289,6 +289,44 @@ impl TreeBuilder {
         
         // Update depths based on the tree structure
         Self::update_depths(nodes, node_map);
+        
+        // DEBUG: Check for nodes with multiple parents
+        Self::check_multiple_parents(nodes);
+    }
+    
+    /// Check and report nodes with multiple parents
+    fn check_multiple_parents(nodes: &[ExecutionTreeNode]) {
+        use std::collections::HashMap;
+        
+        // Count parent references for each node
+        let mut parent_count: HashMap<&String, Vec<&str>> = HashMap::new();
+        
+        for node in nodes {
+            for child_id in &node.children {
+                parent_count.entry(child_id).or_default().push(&node.operator_name);
+            }
+        }
+        
+        // Report nodes with multiple parents
+        let mut has_multiple_parents = false;
+        for node in nodes {
+            if let Some(parents) = parent_count.get(&node.id) {
+                if parents.len() > 1 {
+                    has_multiple_parents = true;
+                    eprintln!("⚠️  节点有多个父节点: {} (id={}, F={:?}, P={:?}, plan_node_id={:?})",
+                        node.operator_name,
+                        node.id,
+                        node.fragment_id,
+                        node.pipeline_id,
+                        node.plan_node_id);
+                    eprintln!("   父节点: {:?}", parents);
+                }
+            }
+        }
+        
+        if !has_multiple_parents {
+            eprintln!("✅ 所有节点都最多只有一个父节点");
+        }
     }
     
     /// Update node depths by traversing from root

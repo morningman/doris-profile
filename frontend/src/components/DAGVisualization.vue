@@ -491,10 +491,33 @@ export default {
   },
   mounted() {
     if (this.viewMode === 'graph') {
+      this.updateSvgSize();
       this.renderDAG();
     }
+    // 监听窗口大小变化
+    window.addEventListener('resize', this.handleResize);
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize);
   },
   methods: {
+    // 更新 SVG 尺寸以适应容器
+    updateSvgSize() {
+      if (this.$refs.svgCanvas) {
+        const container = this.$refs.svgCanvas.parentElement;
+        if (container) {
+          this.svgWidth = container.clientWidth || 1200;
+          this.svgHeight = container.clientHeight || 600;
+        }
+      }
+    },
+    // 处理窗口大小变化
+    handleResize() {
+      this.updateSvgSize();
+      if (this.viewMode === 'graph' && this.hasNodes) {
+        this.renderDAG();
+      }
+    },
     // Graph view methods
     renderDAG() {
       if (!this.hasNodes) {
@@ -599,19 +622,23 @@ export default {
         }
       });
 
-      // 步骤3: 更新 children 引用（将指向 SINK 的引用更新为合并节点）
+      // 步骤3: 更新 children 引用
+      // 关键修复：不要将指向 SINK 的引用重定向到合并节点，而是直接移除
+      // 因为合并节点已经包含了 SINK 的所有 children
       visibleNodes.forEach(node => {
         if (node.children && node.children.length > 0) {
-          node.children = node.children.map(childId => {
-            if (mergeMap.has(childId)) {
-              const mergedChild = mergeMap.get(childId);
-              // 避免自引用
-              if (mergedChild.id !== node.id) {
-                return mergedChild.id;
-              }
+          node.children = node.children.filter(childId => {
+            // 如果 child 是被合并掉的 SINK 节点，移除这个引用
+            if (mergedNodeIds.has(childId)) {
+              console.log(`移除 ${node.operator_name} -> 被合并的SINK(${childId}) 的连接`);
+              return false;
             }
-            return childId;
-          }).filter(childId => childId !== node.id); // 移除自引用
+            // 避免自引用
+            if (childId === node.id) {
+              return false;
+            }
+            return true;
+          });
         }
       });
 
@@ -625,11 +652,19 @@ export default {
 
       this.maxTime = Math.max(...visibleNodes.map(n => this.getNodeTime(n)), 1);
 
+      // 更新 SVG 尺寸以适应容器
+      this.updateSvgSize();
+      
+      // 保存容器宽度，确保 SVG 不超出
+      const containerWidth = this.svgWidth;
+      
       // 优化布局：使用重心启发式算法减少连线交叉
       const LEVEL_HEIGHT = 200;  // 垂直间距
       const LEVEL_WIDTH = 350;   // 横向间距
       let maxDepth = Math.max(...visibleNodes.map(n => n.depth || 0));
-      this.svgHeight = Math.max(800, (maxDepth + 1) * LEVEL_HEIGHT + 150);
+      const calculatedHeight = (maxDepth + 1) * LEVEL_HEIGHT + 150;
+      // SVG 高度取容器高度和计算高度的较大值（垂直方向可以滚动）
+      this.svgHeight = Math.max(this.svgHeight, calculatedHeight);
 
       // 构建节点映射
       const nodeIdMap = new Map(visibleNodes.map(n => [n.id, n]));
@@ -699,14 +734,17 @@ export default {
         visibleNodesByDepth.set(depth, nodeOrder.map(item => item.node));
       });
       
-      // 第二步：计算SVG宽度并居中
+      // 第二步：计算节点布局宽度
       let maxNodesInLevel = 0;
       visibleNodesByDepth.forEach(nodes => {
         maxNodesInLevel = Math.max(maxNodesInLevel, nodes.length);
       });
       const totalWidth = maxNodesInLevel * LEVEL_WIDTH;
-      this.svgWidth = Math.max(1400, totalWidth + 300);
-      const offsetX = (this.svgWidth - totalWidth) / 2;
+      
+      // SVG 宽度始终等于容器宽度（不超出容器）
+      // 如果内容宽度大于容器，用户可以通过缩放和平移查看
+      this.svgWidth = containerWidth;
+      const offsetX = Math.max(50, (this.svgWidth - totalWidth) / 2);
 
       // 第三步：生成最终节点位置
       this.renderedNodes = visibleNodes.map(node => {
@@ -938,10 +976,13 @@ export default {
 <style scoped lang="scss">
 .dag-visualization {
   width: 100%;
-  min-height: 600px;
+  height: 100%;
+  min-height: 500px;
   background: white;
   border-radius: 8px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .view-controls {
@@ -951,6 +992,7 @@ export default {
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .view-btn {
@@ -988,8 +1030,12 @@ export default {
 /* Graph View Styles */
 .graph-view-container {
   position: relative;
-  height: 800px;
+  flex: 1;
+  min-height: 500px;
   background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .dag-toolbar {
@@ -1022,14 +1068,17 @@ export default {
 }
 
 .svg-wrapper {
+  flex: 1;
   width: 100%;
-  height: 100%;
+  max-width: 100%; // 确保不超出父容器
   overflow: hidden;
+  position: relative;
 }
 
 .dag-svg {
   display: block;
   user-select: none;
+  max-width: 100%; // 确保 SVG 不超出容器宽度
 }
 
 .connection-line {
@@ -1143,7 +1192,7 @@ export default {
 /* Table View Styles */
 .table-view {
   padding: 20px;
-  max-height: 800px;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -1190,7 +1239,7 @@ export default {
 /* Tree View Styles */
 .tree-view {
   padding: 20px;
-  max-height: 800px;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -1297,7 +1346,7 @@ export default {
 /* Pipeline View Styles */
 .pipeline-view {
   padding: 20px;
-  max-height: 800px;
+  flex: 1;
   overflow-y: auto;
 }
 

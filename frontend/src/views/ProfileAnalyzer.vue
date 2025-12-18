@@ -319,6 +319,18 @@ export default {
 
 .result-section {
   width: 100%;
+  padding: 0 20px;
+}
+
+// 为所有主要内容块设置统一的最大宽度和居中
+.action-bar,
+.analysis-summary,
+.debug-card,
+.result-grid {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 .action-bar {
@@ -456,22 +468,28 @@ export default {
 
 .result-grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 450px; // Execution Plan 占更多空间，Hotspots 450px
   gap: 20px;
   margin-top: 20px;
+  height: calc(100vh - 280px); // 整体高度自适应
+  min-height: 600px;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr; // 小屏幕时垂直布局
+    height: auto;
   }
 }
 
 .execution-tree-card {
-  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // 允许 flex item 缩小
 
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .node-count {
@@ -481,10 +499,25 @@ export default {
     padding: 2px 8px;
     border-radius: 10px;
   }
+
+  // DAGVisualization 组件占据剩余空间
+  :deep(.dag-visualization) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
 }
 
 .hotspots-card {
-  max-height: 700px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow-y: auto;
+
+  @media (max-width: 1400px) {
+    max-height: 600px;
+  }
 }
 </style>
