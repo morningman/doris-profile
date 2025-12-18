@@ -148,8 +148,11 @@ mod tests {
             metrics: OperatorMetrics {
                 rows_returned: Some(1000),
                 input_rows: None,
-                exec_time_ns: Some(1000000),
-                memory_usage_peak: None,
+                operator_total_time: Some(1000000),
+                operator_total_time_raw: Some("1ms".to_string()),
+                memory_used: Some(0),
+                cpu_time: None,
+                wait_time: None,
             },
             children: vec![],
             depth: 0,
@@ -164,6 +167,7 @@ mod tests {
             common_counters: vec![],
             custom_counters: vec![],
             unique_metrics: HashMap::new(),
+            table_name: None,
         };
         
         let profile = Profile {

@@ -18,9 +18,10 @@ static OPERATOR_HEADER_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^\s*([A-Z][A-Z0-9_]*(?:_OPERATOR)?)\s*(?:\([^(]*nereids_id=(\d+)(?:[^(]*(?:\([^)]*\))?[^)]*)*\))?\s*\(id=(-?\d+)").unwrap()
 });
 
-/// Alternative regex for operators with different format
+/// Alternative regex for operators with different format like:
+/// FILE_SCAN_OPERATOR (id=4. nereids_id=1053. table name = warehouse):
 static OPERATOR_HEADER_ALT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\s*([A-Z][A-Z0-9_]*(?:_OPERATOR)?)\s+\(id=(-?\d+)\.?\s*(?:nereids_id=(\d+))?").unwrap()
+    Regex::new(r"^\s*([A-Z][A-Z0-9_]*(?:_OPERATOR)?)\s+\(id=(-?\d+)\.(?:\s*nereids_id=(\d+))?").unwrap()
 });
 
 /// Regex for DATA_STREAM_SINK with dest_id
@@ -287,11 +288,12 @@ impl OperatorParser {
             return Some((name.to_string(), id, None, None, exchange_type, None));
         }
         
-        // Try standard format: OPERATOR(nereids_id=X)(id=Y)
-        if let Some(caps) = OPERATOR_HEADER_REGEX.captures(trimmed) {
+        // Try alternate format first: OPERATOR (id=X. nereids_id=Y. ...)
+        // This format has a space between operator name and parenthesis
+        if let Some(caps) = OPERATOR_HEADER_ALT_REGEX.captures(trimmed) {
             let name = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-            let nereids_id: Option<i32> = caps.get(2).and_then(|m| m.as_str().parse().ok());
-            let id: i32 = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let id: i32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let nereids_id: Option<i32> = caps.get(3).and_then(|m| m.as_str().parse().ok());
             
             // Extract table name if present
             let table_name = Self::extract_table_name(trimmed);
@@ -299,11 +301,11 @@ impl OperatorParser {
             return Some((name, id, nereids_id, None, None, table_name));
         }
         
-        // Try alternate format: OPERATOR (id=X. nereids_id=Y. ...)
-        if let Some(caps) = OPERATOR_HEADER_ALT_REGEX.captures(trimmed) {
+        // Try standard format: OPERATOR(nereids_id=X)(id=Y)
+        if let Some(caps) = OPERATOR_HEADER_REGEX.captures(trimmed) {
             let name = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-            let id: i32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let nereids_id: Option<i32> = caps.get(3).and_then(|m| m.as_str().parse().ok());
+            let nereids_id: Option<i32> = caps.get(2).and_then(|m| m.as_str().parse().ok());
+            let id: i32 = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
             
             // Extract table name if present
             let table_name = Self::extract_table_name(trimmed);
@@ -445,6 +447,23 @@ mod tests {
         let (name, _id, _, did, _, _) = OperatorParser::parse_header("DATA_STREAM_SINK_OPERATOR(dest_id=25):").unwrap();
         assert_eq!(name, "DATA_STREAM_SINK_OPERATOR");
         assert_eq!(did, Some(25));
+    }
+    
+    #[test]
+    fn test_file_scan_formats() {
+        // Format 1: FILE_SCAN_OPERATOR (id=4. nereids_id=1053. table name = warehouse):
+        let (name, id, nid, _, _, tn) = OperatorParser::parse_header("FILE_SCAN_OPERATOR (id=4. nereids_id=1053. table name = warehouse):").unwrap();
+        assert_eq!(name, "FILE_SCAN_OPERATOR");
+        assert_eq!(id, 4);
+        assert_eq!(nid, Some(1053));
+        assert_eq!(tn, Some("warehouse".to_string()));
+        
+        // Format 2: FILE_SCAN_OPERATOR (nereids_id=1052. table_name=inventory)(id=6):
+        let (name, id, nid, _, _, tn) = OperatorParser::parse_header("FILE_SCAN_OPERATOR (nereids_id=1052. table_name=inventory)(id=6):").unwrap();
+        assert_eq!(name, "FILE_SCAN_OPERATOR");
+        assert_eq!(id, 6);
+        assert_eq!(nid, Some(1052));
+        assert_eq!(tn, Some("inventory".to_string()));
     }
     
     #[test]

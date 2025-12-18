@@ -153,6 +153,10 @@ mod tests {
             is_most_consuming: false,
             is_second_most_consuming: false,
             unique_metrics: HashMap::new(),
+            plan_info: vec![],
+            common_counters: vec![],
+            custom_counters: vec![],
+            table_name: None,
         };
         
         let severity = PerformanceBottleneck::determine_severity(&node);

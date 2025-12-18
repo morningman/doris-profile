@@ -253,7 +253,7 @@ MergedProfile:
         
         let vars = SectionParser::parse_session_variables(text).unwrap();
         assert_eq!(vars.len(), 1);
-        assert_eq!(vars[0].get("VarName").unwrap(), "enable_profile");
+        assert_eq!(vars[0].var_name, "enable_profile");
     }
     
     #[test]
