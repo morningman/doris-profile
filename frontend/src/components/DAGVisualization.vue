@@ -658,9 +658,11 @@ export default {
       // 保存容器宽度，确保 SVG 不超出
       const containerWidth = this.svgWidth;
       
-      // 优化布局：使用重心启发式算法减少连线交叉
-      const LEVEL_HEIGHT = 200;  // 垂直间距
-      const LEVEL_WIDTH = 350;   // 横向间距
+      // 优化布局：使用改进的树形布局
+      const LEVEL_HEIGHT = 180;  // 垂直间距（层与层之间）
+      const NODE_WIDTH = 250;    // 单个节点占据的水平空间
+      const MIN_SIBLING_GAP = 80; // 兄弟节点之间的最小间距
+      const SUBTREE_GAP = 120;   // 不同子树之间的额外间距
       let maxDepth = Math.max(...visibleNodes.map(n => n.depth || 0));
       const calculatedHeight = (maxDepth + 1) * LEVEL_HEIGHT + 150;
       // SVG 高度取容器高度和计算高度的较大值（垂直方向可以滚动）
@@ -669,76 +671,114 @@ export default {
       // 构建节点映射
       const nodeIdMap = new Map(visibleNodes.map(n => [n.id, n]));
       
-      // 使用改进的树形布局算法：自底向上布局子树
+      // 使用改进的树形布局算法：确保规整对齐
       const nodePositions = new Map(); // nodeId -> x position
+      const subtreeWidths = new Map(); // nodeId -> subtree width
       
       // 找到根节点（depth = 0）
       const rootNodes = visibleNodesByDepth.get(0) || [];
       
-      // 递归布局函数：为每个节点及其子树分配位置
-      let currentOffset = 0; // 全局水平偏移
+      // 第一步：计算每个子树的宽度（自底向上）
+      const calculateSubtreeWidth = (nodeId) => {
+        const node = nodeIdMap.get(nodeId);
+        if (!node) return NODE_WIDTH;
+        
+        if (subtreeWidths.has(nodeId)) {
+          return subtreeWidths.get(nodeId);
+        }
+        
+        if (!node.children || node.children.length === 0) {
+          // 叶子节点宽度
+          subtreeWidths.set(nodeId, NODE_WIDTH);
+          return NODE_WIDTH;
+        }
+        
+        // 非叶子节点：宽度 = 所有子节点的子树宽度之和 + 子节点间的间距
+        let totalWidth = 0;
+        node.children.forEach((childId, index) => {
+          const childWidth = calculateSubtreeWidth(childId);
+          totalWidth += childWidth;
+          if (index > 0) {
+            totalWidth += MIN_SIBLING_GAP; // 兄弟节点之间的间距
+          }
+        });
+        
+        // 确保父节点至少有 NODE_WIDTH 的宽度
+        totalWidth = Math.max(totalWidth, NODE_WIDTH);
+        subtreeWidths.set(nodeId, totalWidth);
+        return totalWidth;
+      };
       
+      // 为所有节点计算子树宽度
+      rootNodes.forEach(rootNode => {
+        calculateSubtreeWidth(rootNode.id);
+      });
+      
+      // 第二步：递归布局，分配 x 坐标
       const layoutSubtree = (nodeId, startX) => {
         const node = nodeIdMap.get(nodeId);
         if (!node) return startX;
         
+        const subtreeWidth = subtreeWidths.get(nodeId) || NODE_WIDTH;
+        
         if (!node.children || node.children.length === 0) {
-          // 叶子节点：直接分配位置
-          nodePositions.set(nodeId, startX);
-          return startX + LEVEL_WIDTH;
+          // 叶子节点：位于子树空间的中心
+          nodePositions.set(nodeId, startX + subtreeWidth / 2);
+          return startX + subtreeWidth;
         }
         
         // 有子节点：先布局所有子节点
         let childX = startX;
-        const childPositions = [];
+        const childCenters = [];
         
         node.children.forEach(childId => {
-          const childNode = nodeIdMap.get(childId);
-          if (childNode) {
-            childPositions.push(childX);
-            childX = layoutSubtree(childId, childX);
-          }
+          const childWidth = subtreeWidths.get(childId) || NODE_WIDTH;
+          layoutSubtree(childId, childX);
+          childCenters.push(childX + childWidth / 2);
+          childX += childWidth + MIN_SIBLING_GAP;
         });
         
-        // 父节点位置 = 子节点位置的中点
-        if (childPositions.length > 0) {
-          const firstChildPos = childPositions[0];
-          const lastChildPos = nodePositions.get(node.children[node.children.length - 1]) || firstChildPos;
-          nodePositions.set(nodeId, (firstChildPos + lastChildPos) / 2);
+        // 父节点位置 = 子节点的中心点
+        if (childCenters.length > 0) {
+          const firstChildCenter = childCenters[0];
+          const lastChildCenter = childCenters[childCenters.length - 1];
+          nodePositions.set(nodeId, (firstChildCenter + lastChildCenter) / 2);
         } else {
-          nodePositions.set(nodeId, startX);
-          childX = startX + LEVEL_WIDTH;
+          nodePositions.set(nodeId, startX + subtreeWidth / 2);
         }
         
-        return childX;
+        return startX + subtreeWidth;
       };
       
       // 从根节点开始布局
-      rootNodes.forEach(rootNode => {
+      let currentOffset = 0;
+      rootNodes.forEach((rootNode, index) => {
         currentOffset = layoutSubtree(rootNode.id, currentOffset);
-        currentOffset += LEVEL_WIDTH / 2; // 不同根节点之间增加额外间距
+        if (index < rootNodes.length - 1) {
+          currentOffset += SUBTREE_GAP; // 不同根节点之间的额外间距
+        }
       });
       
       // 确保所有节点都有位置（处理可能的孤立节点）
-      const depths = Array.from(visibleNodesByDepth.keys()).sort((a, b) => b - a);
+      const depths = Array.from(visibleNodesByDepth.keys()).sort((a, b) => a - b);
       depths.forEach(depth => {
         const levelNodes = visibleNodesByDepth.get(depth);
         levelNodes.forEach(node => {
           if (!nodePositions.has(node.id)) {
             nodePositions.set(node.id, currentOffset);
-            currentOffset += LEVEL_WIDTH;
+            currentOffset += NODE_WIDTH + MIN_SIBLING_GAP;
           }
         });
       });
       
-      // 第二步：计算实际布局宽度
+      // 第三步：计算实际布局宽度
       let minX = Infinity;
       let maxX = -Infinity;
       nodePositions.forEach(x => {
         minX = Math.min(minX, x);
         maxX = Math.max(maxX, x);
       });
-      const totalWidth = maxX - minX + LEVEL_WIDTH;
+      const totalWidth = maxX - minX + NODE_WIDTH;
       
       // SVG 宽度始终等于容器宽度（不超出容器）
       // 如果内容宽度大于容器，用户可以通过缩放和平移查看
@@ -747,7 +787,7 @@ export default {
       // 计算居中偏移量，同时减去 minX 使布局从 0 开始
       const offsetX = Math.max(50, (this.svgWidth - totalWidth) / 2) - minX;
 
-      // 第三步：生成最终节点位置
+      // 第四步：生成最终节点位置
       this.renderedNodes = visibleNodes.map(node => {
         const depth = node.depth || 0;
         const y = depth * LEVEL_HEIGHT + 80;
