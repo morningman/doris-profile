@@ -28,10 +28,6 @@
         </div>
         <div class="hotspot-path">{{ hotspot.node_path }}</div>
         <div class="hotspot-description">{{ hotspot.description }}</div>
-        <div class="hotspot-impact">
-          <i class="fas fa-exclamation-triangle"></i>
-          {{ hotspot.impact }}
-        </div>
         <div v-if="hotspot.suggestion" class="hotspot-suggestion">
           <i class="fas fa-lightbulb"></i>
           {{ hotspot.suggestion }}
@@ -237,26 +233,17 @@ export default {
   margin-bottom: 8px;
 }
 
-.hotspot-impact,
 .hotspot-suggestion {
   font-size: 12px;
   padding: 8px 12px;
   border-radius: 6px;
   margin-top: 8px;
+  background: rgba(64, 158, 255, 0.1);
+  color: var(--primary-color);
 
   i {
     margin-right: 8px;
   }
-}
-
-.hotspot-impact {
-  background: rgba(230, 162, 60, 0.1);
-  color: var(--severity-high);
-}
-
-.hotspot-suggestion {
-  background: rgba(64, 158, 255, 0.1);
-  color: var(--primary-color);
 }
 
 .suggestions-section {

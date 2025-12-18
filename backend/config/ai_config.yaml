@@ -1,0 +1,26 @@
+# AI 诊断配置
+ai_diagnosis:
+  enabled: false  # 是否启用 AI 诊断
+  provider: openai  # AI 服务提供商
+  
+  # OpenAI 配置
+  openai:
+    api_key: ""  # API Key（环境变量优先：OPENAI_API_KEY）
+    api_endpoint: "https://api.openai.com/v1/chat/completions"
+    model: "gpt-4"  # 可选：gpt-4, gpt-3.5-turbo
+    temperature: 0.7
+    max_tokens: 1000
+    timeout_seconds: 30
+  
+  # Prompt 模板配置
+  prompt:
+    system_message: |
+      You are an expert Doris database performance analyst. Analyze the provided execution plan node and provide specific, actionable optimization suggestions in Chinese.
+      Focus on practical recommendations based on the node's metrics and context.
+    
+    include_context:
+      sql_statement: true
+      query_summary: true
+      child_nodes: true
+      max_child_nodes: 3
+

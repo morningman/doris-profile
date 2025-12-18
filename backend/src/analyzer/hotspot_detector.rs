@@ -44,7 +44,7 @@ impl HotSpotDetector {
             return None;
         }
         
-        let (description, impact, suggestion) = Self::generate_analysis(node, &severity);
+        let description = Self::generate_analysis(node, &severity);
         
         Some(HotSpot {
             node_id: node.id.clone(),
@@ -52,9 +52,8 @@ impl HotSpotDetector {
             operator_name: node.operator_name.clone(),
             severity,
             description,
-            impact,
             time_percentage: node.time_percentage,
-            suggestion: Some(suggestion),
+            suggestion: None,  // Will be filled by SuggestionEngine
         })
     }
     
@@ -81,72 +80,17 @@ impl HotSpotDetector {
         HotspotSeverity::None
     }
     
-    /// Generate analysis description, impact, and suggestion for a hotspot
-    fn generate_analysis(node: &ExecutionTreeNode, severity: &HotspotSeverity) -> (String, String, String) {
+    /// Generate analysis description for a hotspot
+    /// Suggestion will be filled by SuggestionEngine later
+    fn generate_analysis(node: &ExecutionTreeNode, _severity: &HotspotSeverity) -> String {
         let pct_str = node.time_percentage
             .map(|p| format!("{:.1}%", p))
             .unwrap_or_else(|| "N/A".to_string());
         
-        match node.node_type {
-            NodeType::OlapScan => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = match severity {
-                    HotspotSeverity::Critical => "Critical impact on query performance. Scan operation is the primary bottleneck.".to_string(),
-                    HotspotSeverity::High => "High impact on query performance. Consider optimizing scan filters.".to_string(),
-                    _ => "Moderate impact on query performance.".to_string(),
-                };
-                let suggestion = "Consider adding indexes, optimizing predicates, or reducing data scan range with partition pruning.".to_string();
-                (description, impact, suggestion)
-            }
-            NodeType::HashJoin => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = "Join operation may be processing large datasets or using suboptimal join strategy.".to_string();
-                let suggestion = "Consider reordering joins, adding indexes on join columns, or using broadcast join for small tables.".to_string();
-                (description, impact, suggestion)
-            }
-            NodeType::Aggregate => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = "Aggregation operation may be processing many distinct values or large datasets.".to_string();
-                let suggestion = "Consider pre-aggregating data, using approximate aggregation, or reducing group by cardinality.".to_string();
-                (description, impact, suggestion)
-            }
-            NodeType::Sort => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = "Sort operation may be processing large datasets.".to_string();
-                let suggestion = "Consider adding index on sort columns, limiting result set, or using TOP-N optimization.".to_string();
-                (description, impact, suggestion)
-            }
-            NodeType::Exchange => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = "Data shuffle between nodes may be causing network bottleneck.".to_string();
-                let suggestion = "Consider colocate join, reducing shuffle data, or optimizing partition strategy.".to_string();
-                (description, impact, suggestion)
-            }
-            _ => {
-                let description = format!(
-                    "{} operator consuming {} of total execution time",
-                    node.operator_name, pct_str
-                );
-                let impact = "This operator is consuming significant execution time.".to_string();
-                let suggestion = "Review the operator's input data and execution strategy.".to_string();
-                (description, impact, suggestion)
-            }
-        }
+        format!(
+            "{} operator consuming {} of total execution time",
+            node.operator_name, pct_str
+        )
     }
     
     /// Build a human-readable path for the node

@@ -1,0 +1,106 @@
+# Default optimization suggestions configuration
+# Organized by node type, each node type can have suggestions for different severity levels
+
+suggestions:
+  OLAP_SCAN_OPERATOR:
+    critical:
+      - "Scan operation is the primary bottleneck. Consider adding indexes or optimizing partition pruning strategy"
+      - "Consider using materialized views for pre-aggregation"
+    high:
+      - "Consider optimizing scan filter conditions to reduce data scan volume"
+      - "Check if partition keys can be used for partition pruning"
+    medium:
+      - "Consider adding Bloom Filter indexes to accelerate filtering"
+    low:
+      - "Scan performance is normal. Monitor data growth trends"
+  
+  FILE_SCAN_OPERATOR:
+    critical:
+      - "File scan is the primary bottleneck. Consider optimizing partition pruning or reducing the number of scanned files"
+      - "Consider using columnar storage format (e.g. Parquet) and enable predicate pushdown"
+    high:
+      - "Check if file format and compression method are optimal"
+      - "Consider adjusting parallelism or increasing scan threads"
+    medium:
+      - "Consider using statistics to assist optimization"
+    low:
+      - "File scan performance is normal"
+  
+  HASH_JOIN_OPERATOR:
+    critical:
+      - "JOIN operation severely impacts performance. Review JOIN conditions and consider reordering JOIN sequence"
+      - "For small tables, consider using BROADCAST JOIN"
+    high:
+      - "Consider adding indexes on JOIN columns"
+      - "Check if COLOCATE JOIN can be used to reduce data shuffle"
+    medium:
+      - "Consider adjusting Runtime Filter strategy"
+    low:
+      - "JOIN performance is normal"
+  
+  CROSS_JOIN_OPERATOR:
+    critical:
+      - "CROSS JOIN may produce cartesian product, severely impacting performance. Add JOIN conditions"
+      - "Check if it can be rewritten as INNER JOIN or other JOIN types"
+    high:
+      - "Consider limiting result set size or adding filter conditions"
+    medium:
+      - "CROSS JOIN should be used cautiously. Review query logic"
+    low:
+      - "Confirm if CROSS JOIN is necessary"
+  
+  AGGREGATION_OPERATOR:
+    critical:
+      - "Aggregation operation is the primary bottleneck. Check cardinality of GROUP BY fields"
+      - "Consider using pre-aggregation or materialized views"
+    high:
+      - "High cardinality aggregation may cause performance issues. Consider using approximate aggregation functions"
+    medium:
+      - "Consider adjusting aggregation strategy or increasing parallelism"
+    low:
+      - "Aggregation performance is normal"
+  
+  SORT_OPERATOR:
+    critical:
+      - "Sort operation severely impacts performance. Consider adding indexes on sort columns"
+      - "Consider using LIMIT to restrict result set size"
+    high:
+      - "Consider using TOP-N optimization"
+    medium:
+      - "Large sort data volume. Consider increasing memory configuration"
+    low:
+      - "Sort performance is normal"
+  
+  EXCHANGE_OPERATOR:
+    critical:
+      - "Data shuffle is the bottleneck. Consider optimizing partition strategy"
+      - "Consider using COLOCATE attribute to reduce data movement"
+    high:
+      - "Consider adjusting partition count or using BUCKET SHUFFLE"
+    medium:
+      - "Large data exchange volume. Monitor network bandwidth"
+    low:
+      - "Data exchange performance is normal"
+  
+  LOCAL_EXCHANGE_OPERATOR:
+    critical:
+      - "Local data exchange is the bottleneck. May be caused by improper parallelism settings"
+      - "Check for data skew issues"
+    high:
+      - "Consider adjusting parallelism configuration"
+    medium:
+      - "Local exchange performance can be optimized"
+    low:
+      - "Local exchange performance is normal"
+  
+  # Default suggestions (used when no specific type match is found)
+  DEFAULT:
+    critical:
+      - "This operation consumes significant execution time. Analyze its input data and execution strategy in detail"
+    high:
+      - "This operation has significant performance impact. Check related configurations and data distribution"
+    medium:
+      - "This operation has optimization potential and can be further analyzed"
+    low:
+      - "This operation performance is normal. Continue monitoring"
+

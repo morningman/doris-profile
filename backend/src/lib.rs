@@ -4,11 +4,15 @@ pub mod analyzer;
 pub mod api;
 pub mod constants;
 pub mod static_files;
+pub mod config;
+pub mod ai;
 
 pub use models::*;
 pub use analyzer::hotspot_detector::HotSpotDetector;
 pub use analyzer::suggestion_engine::SuggestionEngine;
 pub use parser::ProfileComposer;
+pub use config::ConfigLoader;
+pub use ai::AiDiagnosisService;
 
 /// Main entry point for analyzing a Doris profile text
 pub fn analyze_profile(profile_text: &str) -> Result<ProfileAnalysisResponse, String> {

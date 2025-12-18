@@ -1,7 +1,10 @@
 use warp::Filter;
 use serde_json::json;
 use serde::{Serialize, Deserialize};
+use std::sync::Arc;
 use crate::static_files::StaticFiles;
+use crate::{AiDiagnosisService, ProfileComposer, HotSpotDetector, SuggestionEngine};
+use crate::config::DefaultSuggestionsConfig;
 
 #[derive(Deserialize)]
 struct AnalyzeRequest {
@@ -15,7 +18,22 @@ struct AnalyzeResponse {
     data: Option<crate::models::ProfileAnalysisResponse>,
 }
 
-pub async fn start_server(host: String, port: u16) {
+#[derive(Clone)]
+struct AppState {
+    ai_service: Option<Arc<AiDiagnosisService>>,
+    default_config: Arc<DefaultSuggestionsConfig>,
+}
+
+pub async fn start_server(
+    host: String,
+    port: u16,
+    ai_service: Option<Arc<AiDiagnosisService>>,
+    default_config: Arc<DefaultSuggestionsConfig>,
+) {
+    let app_state = Arc::new(AppState {
+        ai_service,
+        default_config,
+    });
     let cors = warp::cors()
         .allow_any_origin()
         .allow_headers(vec!["content-type"])
@@ -26,12 +44,15 @@ pub async fn start_server(host: String, port: u16) {
         .and(warp::get())
         .map(|| warp::reply::json(&json!({"status": "ok"})));
 
+    let state_filter = warp::any().map(move || app_state.clone());
+    
     // Analyze profile from JSON body
     let analyze_profile_json = warp::path("api")
         .and(warp::path("analyze"))
         .and(warp::post())
         .and(warp::body::content_length_limit(1024 * 1024 * 50))
         .and(warp::body::json())
+        .and(state_filter.clone())
         .and_then(handle_analyze_profile);
 
     // Analyze profile from file upload
@@ -41,6 +62,7 @@ pub async fn start_server(host: String, port: u16) {
         .and(warp::post())
         .and(warp::body::content_length_limit(file_limits::MAX_UPLOAD_SIZE))
         .and(warp::multipart::form().max_length(file_limits::MAX_UPLOAD_SIZE))
+        .and(state_filter.clone())
         .and_then(handle_analyze_profile_file);
 
     // API routes
@@ -69,8 +91,11 @@ pub async fn start_server(host: String, port: u16) {
         .await;
 }
 
-async fn handle_analyze_profile(req: AnalyzeRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    match crate::analyze_profile(&req.profile_text) {
+async fn handle_analyze_profile(
+    req: AnalyzeRequest,
+    state: Arc<AppState>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    match analyze_profile_with_ai(&req.profile_text, &state).await {
         Ok(result) => {
             let response = AnalyzeResponse {
                 success: true,
@@ -90,7 +115,47 @@ async fn handle_analyze_profile(req: AnalyzeRequest) -> Result<impl warp::Reply,
     }
 }
 
-async fn handle_analyze_profile_file(mut form: warp::multipart::FormData) -> Result<impl warp::Reply, warp::Rejection> {
+async fn analyze_profile_with_ai(
+    profile_text: &str,
+    state: &AppState,
+) -> Result<crate::models::ProfileAnalysisResponse, String> {
+    // 1. Parse profile
+    let mut composer = ProfileComposer::new();
+    let profile = composer.parse(profile_text)
+        .map_err(|e| format!("Failed to parse profile: {:?}", e))?;
+    
+    // 2. Detect hotspots
+    let mut hotspots = HotSpotDetector::analyze(&profile);
+    
+    // 3. Fill suggestions using AI or default config
+    SuggestionEngine::fill_suggestions(
+        &mut hotspots,
+        &profile,
+        state.ai_service.as_deref(),
+        &state.default_config,
+    ).await;
+    
+    // 4. Generate conclusion and score
+    let conclusion = SuggestionEngine::generate_conclusion(&hotspots, &profile);
+    let suggestions = SuggestionEngine::generate_suggestions(&hotspots);
+    let performance_score = SuggestionEngine::calculate_performance_score(&hotspots, &profile);
+    let execution_tree = profile.execution_tree.clone();
+    let summary = Some(profile.summary.clone());
+    
+    Ok(crate::models::ProfileAnalysisResponse {
+        hotspots,
+        conclusion,
+        suggestions,
+        performance_score,
+        execution_tree,
+        summary,
+    })
+}
+
+async fn handle_analyze_profile_file(
+    mut form: warp::multipart::FormData,
+    state: Arc<AppState>,
+) -> Result<impl warp::Reply, warp::Rejection> {
     use futures::TryStreamExt;
     use bytes::Buf;
     
@@ -117,7 +182,7 @@ async fn handle_analyze_profile_file(mut form: warp::multipart::FormData) -> Res
         })));
     }
     
-    match crate::analyze_profile(&profile_text) {
+    match analyze_profile_with_ai(&profile_text, &state).await {
         Ok(result) => {
             let response = AnalyzeResponse {
                 success: true,

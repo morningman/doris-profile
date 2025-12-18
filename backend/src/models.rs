@@ -219,7 +219,6 @@ pub struct HotSpot {
     pub operator_name: String,
     pub severity: HotspotSeverity,
     pub description: String,
-    pub impact: String,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_percentage: Option<f64>,

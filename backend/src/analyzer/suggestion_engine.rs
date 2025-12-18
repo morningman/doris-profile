@@ -1,10 +1,77 @@
 use crate::models::*;
 use crate::constants::scores;
+use crate::ai::AiDiagnosisService;
+use crate::config::DefaultSuggestionsConfig;
 
 /// SuggestionEngine generates optimization suggestions based on detected hotspots
 pub struct SuggestionEngine;
 
 impl SuggestionEngine {
+    /// Fill suggestions for hotspots using AI or default suggestions
+    pub async fn fill_suggestions(
+        hotspots: &mut Vec<HotSpot>,
+        profile: &Profile,
+        ai_service: Option<&AiDiagnosisService>,
+        default_config: &DefaultSuggestionsConfig,
+    ) {
+        for hotspot in hotspots.iter_mut() {
+            // Find corresponding node
+            if let Some(ref tree) = profile.execution_tree {
+                if let Some(node) = tree.nodes.iter().find(|n| n.id == hotspot.node_id) {
+                    // Try to use AI to generate suggestion
+                    let suggestion = if let Some(ai) = ai_service {
+                        if ai.is_enabled() {
+                            match ai.generate_suggestion(node, profile).await {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    eprintln!("AI suggestion failed for node {}: {}, using default", node.id, e);
+                                    Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                                }
+                            }
+                        } else {
+                            Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                        }
+                    } else {
+                        Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                    };
+                    
+                    hotspot.suggestion = Some(suggestion);
+                }
+            }
+        }
+    }
+    
+    /// Get default suggestion from configuration file
+    fn get_default_suggestion(
+        operator_name: &str,
+        severity: &HotspotSeverity,
+        config: &DefaultSuggestionsConfig,
+    ) -> String {
+        // Try to match operator name
+        let suggestions = config.suggestions.get(operator_name)
+            .or_else(|| config.suggestions.get("DEFAULT"));
+        
+        if let Some(sev_suggestions) = suggestions {
+            let suggestions_list = match severity {
+                HotspotSeverity::Critical => &sev_suggestions.critical,
+                HotspotSeverity::High => &sev_suggestions.high,
+                HotspotSeverity::Medium => &sev_suggestions.medium,
+                HotspotSeverity::Low => &sev_suggestions.low,
+                HotspotSeverity::None => return "暂无优化建议".to_string(),
+            };
+            
+            // Return first suggestion if available, or combine multiple
+            if suggestions_list.is_empty() {
+                "暂无优化建议".to_string()
+            } else {
+                suggestions_list.join("\n")
+            }
+        } else {
+            "暂无优化建议".to_string()
+        }
+    }
+    
+
     /// Generate a conclusion summary based on hotspots and profile
     pub fn generate_conclusion(hotspots: &[HotSpot], profile: &Profile) -> String {
         let total_time = profile.summary.total_time.clone();
