@@ -24,19 +24,56 @@ impl SectionParser {
         let summary_block = Self::extract_section(text, "Summary:")?;
         
         let mut fields = HashMap::new();
-        for line in summary_block.lines() {
+        let lines: Vec<&str> = summary_block.lines().collect();
+        let mut i = 0;
+        
+        while i < lines.len() {
+            let line = lines[i];
             if let Some(cap) = SUMMARY_LINE_REGEX.captures(line) {
                 let key = cap.get(1).map(|m| m.as_str().trim()).unwrap_or("");
-                let value = cap.get(2).map(|m| m.as_str().trim()).unwrap_or("");
+                let mut value = cap.get(2).map(|m| m.as_str().trim()).unwrap_or("").to_string();
+                
+                // Special handling for Sql Statement: collect multi-line SQL
+                if key == "Sql Statement" {
+                    let mut j = i + 1;
+                    while j < lines.len() {
+                        let next_line = lines[j];
+                        let trimmed = next_line.trim();
+                        
+                        // Stop if we hit another field (starts with -)
+                        if trimmed.starts_with('-') {
+                            break;
+                        }
+                        
+                        // Stop if empty line
+                        if trimmed.is_empty() {
+                            break;
+                        }
+                        
+                        // Append continuation line
+                        if !value.is_empty() && !value.ends_with('\n') {
+                            value.push('\n');
+                        }
+                        value.push_str(trimmed);
+                        j += 1;
+                    }
+                    i = j - 1; // Update i to skip processed lines
+                }
+                
                 if !key.is_empty() {
-                    fields.insert(key.to_string(), value.to_string());
+                    fields.insert(key.to_string(), value);
                 }
             }
+            i += 1;
         }
         
         // Also parse Execution Summary if present
         if let Ok(exec_block) = Self::extract_section(text, "Execution Summary:") {
-            for line in exec_block.lines() {
+            let exec_lines: Vec<&str> = exec_block.lines().collect();
+            let mut i = 0;
+            
+            while i < exec_lines.len() {
+                let line = exec_lines[i];
                 if let Some(cap) = EXEC_SUMMARY_LINE_REGEX.captures(line) {
                     let key = cap.get(1).map(|m| m.as_str().trim()).unwrap_or("");
                     let value = cap.get(2).map(|m| m.as_str().trim()).unwrap_or("");
@@ -44,6 +81,7 @@ impl SectionParser {
                         fields.insert(key.to_string(), value.to_string());
                     }
                 }
+                i += 1;
             }
         }
         
