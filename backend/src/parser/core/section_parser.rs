@@ -101,7 +101,7 @@ impl SectionParser {
             user: fields.get("User").cloned(),
             default_db: fields.get("Default Db").cloned(),
             default_catalog: fields.get("Default Catalog").cloned(),
-            variables: HashMap::new(),
+            session_variables: Vec::new(),
             execution_summary,
             total_time_ms,
             query_peak_memory: None,
@@ -109,7 +109,7 @@ impl SectionParser {
     }
     
     /// Parse the ChangedSessionVariables section as JSON
-    pub fn parse_session_variables(text: &str) -> ParseResult<Vec<HashMap<String, String>>> {
+    pub fn parse_session_variables(text: &str) -> ParseResult<Vec<crate::models::SessionVariable>> {
         let start_marker = "ChangedSessionVariables:";
         let start_pos = text.find(start_marker)
             .ok_or_else(|| ParseError::MissingField("ChangedSessionVariables section".to_string()))?;

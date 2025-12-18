@@ -154,6 +154,31 @@
         </div>
       </div>
     </div>
+
+    <!-- Session Variables Section -->
+    <div v-if="summary?.session_variables && summary.session_variables.length > 0" class="card session-variables-section">
+      <h3>Session Variables</h3>
+      <div class="table-wrapper">
+        <table class="session-variables-table">
+          <thead>
+            <tr>
+              <th>Variable Name</th>
+              <th>Current Value</th>
+              <th>Default Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(variable, index) in summary.session_variables" :key="index">
+              <td class="var-name">{{ variable.VarName }}</td>
+              <td class="var-current" :class="{ 'value-changed': variable.CurrentValue !== variable.DefaultValue }">
+                {{ variable.CurrentValue }}
+              </td>
+              <td class="var-default">{{ variable.DefaultValue }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -635,6 +660,84 @@ export default {
       color: #666;
       white-space: pre-wrap;
       word-break: break-all;
+    }
+  }
+}
+
+/* Session Variables Section */
+.session-variables-section {
+  margin-top: 20px;
+  
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .session-variables-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    
+    thead {
+      background-color: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+      
+      th {
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+    
+    tbody {
+      tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s ease;
+        
+        &:hover {
+          background-color: #f8f9fa;
+        }
+        
+        &:last-child {
+          border-bottom: none;
+        }
+      }
+      
+      td {
+        padding: 12px 16px;
+        color: var(--text-primary);
+        
+        &.var-name {
+          font-weight: 500;
+          color: #2c5aa0;
+        }
+        
+        &.var-current {
+          font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+          font-size: 12px;
+          
+          &.value-changed {
+            color: #d9534f;
+            font-weight: 600;
+          }
+        }
+        
+        &.var-default {
+          font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+          font-size: 12px;
+          color: #6c757d;
+        }
+      }
     }
   }
 }

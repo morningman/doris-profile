@@ -9,6 +9,19 @@ pub struct Profile {
     pub execution_tree: Option<ExecutionTree>,
 }
 
+/// Session variable with name, current and default values
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionVariable {
+    #[serde(rename = "VarName")]
+    pub var_name: String,
+    
+    #[serde(rename = "CurrentValue")]
+    pub current_value: String,
+    
+    #[serde(rename = "DefaultValue")]
+    pub default_value: String,
+}
+
 /// Summary information about the query
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProfileSummary {
@@ -32,7 +45,8 @@ pub struct ProfileSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_catalog: Option<String>,
     
-    pub variables: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub session_variables: Vec<SessionVariable>,
     
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub execution_summary: HashMap<String, String>,

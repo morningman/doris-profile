@@ -30,10 +30,12 @@ impl ProfileComposer {
         }
         
         // Parse Summary section
-        let summary = SectionParser::parse_summary(profile_text)?;
+        let mut summary = SectionParser::parse_summary(profile_text)?;
         
         // Parse ChangedSessionVariables (optional)
-        let _variables = SectionParser::parse_session_variables(profile_text).ok();
+        if let Ok(variables) = SectionParser::parse_session_variables(profile_text) {
+            summary.session_variables = variables;
+        }
         
         // Extract MergedProfile section
         let merged_profile = SectionParser::extract_merged_profile(profile_text)?;
