@@ -395,6 +395,7 @@ export default {
       selectedNodeId: null,
       selectedNode: null,
       maxTime: 0,
+      needsAutoFit: true, // 标记是否需要自动适应
     };
   },
   computed: {
@@ -477,6 +478,7 @@ export default {
     tree: {
       handler() {
         if (this.viewMode === 'graph') {
+          this.needsAutoFit = true; // 数据变化时需要自动适应
           this.$nextTick(() => this.renderDAG());
         }
       },
@@ -485,14 +487,18 @@ export default {
     },
     viewMode(newMode) {
       if (newMode === 'graph') {
+        this.needsAutoFit = true; // 切换视图时需要自动适应
         this.$nextTick(() => this.renderDAG());
       }
     }
   },
   mounted() {
     if (this.viewMode === 'graph') {
-      this.updateSvgSize();
-      this.renderDAG();
+      // 延迟一点确保容器尺寸已准备好
+      this.$nextTick(() => {
+        this.updateSvgSize();
+        this.renderDAG();
+      });
     }
     // 监听窗口大小变化
     window.addEventListener('resize', this.handleResize);
@@ -837,6 +843,17 @@ export default {
           }
         });
       });
+      
+      // 首次渲染或数据变化时，自动适应屏幕
+      if (this.needsAutoFit && this.renderedNodes.length > 0) {
+        // 使用 setTimeout 确保 DOM 完全更新后再执行
+        this.$nextTick(() => {
+          setTimeout(() => {
+            this.fitToScreen();
+            this.needsAutoFit = false;
+          }, 100);
+        });
+      }
     },
     
     // 创建合并节点
@@ -953,15 +970,71 @@ export default {
       const beforeZoomX = (pointX - this.panX) / this.zoom;
       const beforeZoomY = (pointY - this.panY) / this.zoom;
       
-      // 应用缩放
-      const newZoom = Math.min(3, Math.max(0.3, this.zoom * factor));
+      // 应用缩放（允许缩小到 5% 以显示完整树形结构）
+      const newZoom = Math.min(3, Math.max(0.05, this.zoom * factor));
       this.zoom = newZoom;
       
       // 调整 pan 偏移，使该点保持不变
       this.panX = pointX - beforeZoomX * newZoom;
       this.panY = pointY - beforeZoomY * newZoom;
     },
-    fitToScreen() { this.zoom = 0.8; this.panX = 50; this.panY = 50; },
+    fitToScreen() {
+      // 自动计算最佳缩放比例以适应屏幕
+      if (!this.renderedNodes || this.renderedNodes.length === 0) {
+        this.zoom = 0.8;
+        this.panX = 50;
+        this.panY = 50;
+        return;
+      }
+      
+      // 确保 SVG 尺寸已更新
+      this.updateSvgSize();
+      
+      // 验证 SVG 尺寸是否有效
+      if (this.svgWidth <= 0 || this.svgHeight <= 0) {
+        console.warn('Invalid SVG size, skipping fitToScreen');
+        return;
+      }
+      
+      // 计算内容边界
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      this.renderedNodes.forEach(node => {
+        minX = Math.min(minX, node.x);
+        maxX = Math.max(maxX, node.x + 200); // NODE_WIDTH
+        minY = Math.min(minY, node.y);
+        maxY = Math.max(maxY, node.y + 90); // NODE_HEIGHT
+      });
+      
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+      
+      // 验证内容尺寸
+      if (contentWidth <= 0 || contentHeight <= 0 || !isFinite(contentWidth) || !isFinite(contentHeight)) {
+        console.warn('Invalid content dimensions, skipping fitToScreen');
+        return;
+      }
+      
+      // 计算缩放比例（留 15% 边距）
+      const scaleX = (this.svgWidth * 0.85) / contentWidth;
+      const scaleY = (this.svgHeight * 0.85) / contentHeight;
+      let newZoom = Math.min(scaleX, scaleY);
+      
+      // 限制缩放范围（允许缩小到 5% 以显示完整树形结构）
+      newZoom = Math.max(0.05, Math.min(newZoom, 2));
+      
+      if (!isFinite(newZoom)) {
+        console.warn('Invalid zoom calculated, using default');
+        newZoom = 0.8;
+      }
+      
+      // 居中
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      
+      this.zoom = newZoom;
+      this.panX = this.svgWidth / 2 - centerX * newZoom;
+      this.panY = this.svgHeight / 2 - centerY * newZoom;
+    },
     resetView() { this.zoom = 1; this.panX = 50; this.panY = 50; this.deselectNode(); },
     handleWheel(event) {
       // 获取 SVG 元素和鼠标位置
@@ -977,12 +1050,12 @@ export default {
       const beforeZoomX = (mouseX - this.panX) / this.zoom;
       const beforeZoomY = (mouseY - this.panY) / this.zoom;
       
-      // 应用缩放
+      // 应用缩放（允许缩小到 5% 以显示完整树形结构）
       const delta = event.deltaY;
       const zoomSensitivity = 0.001; // 降低敏感度
       const zoomChange = -delta * zoomSensitivity;
       const oldZoom = this.zoom;
-      const newZoom = Math.min(3, Math.max(0.3, this.zoom * (1 + zoomChange)));
+      const newZoom = Math.min(3, Math.max(0.05, this.zoom * (1 + zoomChange)));
       this.zoom = newZoom;
       
       // 计算缩放后，为了保持鼠标点指向的内容不变，需要调整的 pan 偏移
