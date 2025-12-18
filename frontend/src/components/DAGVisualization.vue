@@ -103,6 +103,7 @@
                 v-for="node in renderedNodes"
                 :key="node.id"
                 :transform="`translate(${node.x}, ${node.y})`"
+                :data-node-id="node.id"
                 class="node-group"
                 :class="{ selected: selectedNodeId === node.id, hotspot: node.is_hotspot }"
                 @click.stop="selectNode(node)"
@@ -1200,6 +1201,41 @@ export default {
     },
     getNodesForPipeline(fragId, pipeId) {
       return (this.nodesByFragment[fragId] || []).filter(n => n.pipeline_id === pipeId);
+    },
+    // 定位并居中显示指定节点
+    locateAndCenterNode(nodeId) {
+      // 在 renderedNodes 中查找节点
+      const node = this.renderedNodes.find(n => n.id === nodeId);
+      if (!node || !node.x || !node.y) {
+        console.warn(`Node ${nodeId} not found or has no position`);
+        return;
+      }
+      
+      // 计算节点中心位置
+      const nodeCenterX = node.x + this.NODE_WIDTH / 2;
+      const nodeCenterY = node.y + this.getNodeTotalHeight(node) / 2;
+      
+      // 设置合适的缩放级别（如果当前缩放太小）
+      const targetZoom = Math.max(this.zoom, 0.8);
+      
+      // 计算新的 pan 值，使节点居中
+      this.panX = this.svgWidth / 2 - nodeCenterX * targetZoom;
+      this.panY = this.svgHeight / 2 - nodeCenterY * targetZoom;
+      this.zoom = targetZoom;
+      
+      // 选中节点
+      this.selectNode(node);
+      
+      // 添加视觉反馈：短暂高亮
+      this.$nextTick(() => {
+        const element = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (element) {
+          element.classList.add('node-highlight');
+          setTimeout(() => {
+            element.classList.remove('node-highlight');
+          }, 1000);
+        }
+      });
     }
   }
 };
@@ -1337,6 +1373,19 @@ export default {
   &:hover .node-border { stroke: #2196F3; stroke-width: 2; }
   &.selected .node-border { stroke: #1976D2; stroke-width: 2; }
   &.hotspot .node-border { stroke: #E57373; stroke-width: 2; }
+  
+  &.node-highlight {
+    animation: highlight-pulse 1s ease-out;
+  }
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .node-header {

@@ -118,7 +118,7 @@
             <h3><i class="fas fa-project-diagram"></i> Execution Plan</h3>
             <span class="node-count">{{ executionTree?.nodes?.length || 0 }} nodes</span>
           </div>
-          <DAGVisualization :tree="executionTree" />
+          <DAGVisualization ref="dagVisualization" :tree="executionTree" />
         </div>
 
         <!-- Hotspots Panel -->
@@ -129,7 +129,7 @@
               {{ hotspots.length }} issue(s)
             </span>
           </div>
-          <HotSpotsPanel :hotspots="hotspots" :suggestions="suggestions" />
+          <HotSpotsPanel :hotspots="hotspots" :suggestions="suggestions" @node-click="handleHotspotNodeClick" />
         </div>
       </div>
     </div>
@@ -160,6 +160,7 @@ export default {
     const showDebug = ref(false);
     const debugTab = ref("tree");
     const copySuccess = ref(false);
+    const dagVisualization = ref(null);
 
     // Getters
     const hasResult = computed(() => store.getters.hasResult);
@@ -247,11 +248,18 @@ export default {
       store.commit("SET_ERROR", null);
     };
 
+    const handleHotspotNodeClick = (nodeId) => {
+      if (dagVisualization.value) {
+        dagVisualization.value.locateAndCenterNode(nodeId);
+      }
+    };
+
     return {
       activeTab,
       showDebug,
       debugTab,
       copySuccess,
+      dagVisualization,
       hasResult,
       isLoading,
       error,
@@ -270,6 +278,7 @@ export default {
       handleTextSubmit,
       handleReset,
       clearError,
+      handleHotspotNodeClick,
     };
   },
 };

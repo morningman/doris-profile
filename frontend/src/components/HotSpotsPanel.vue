@@ -12,6 +12,7 @@
         :key="hotspot.node_id"
         class="hotspot-item"
         :class="`severity-${hotspot.severity.toLowerCase()}`"
+        @click="handleNodeClick(hotspot)"
       >
         <div class="hotspot-header">
           <div class="hotspot-rank">{{ index + 1 }}</div>
@@ -77,7 +78,8 @@ export default {
       default: () => [],
     },
   },
-  setup() {
+  emits: ['node-click'],
+  setup(props, { emit }) {
     const priorityClass = (priority) => {
       switch (priority) {
         case "Critical":
@@ -106,9 +108,14 @@ export default {
       }
     };
 
+    const handleNodeClick = (hotspot) => {
+      emit('node-click', hotspot.node_id);
+    };
+
     return {
       priorityClass,
       categoryIcon,
+      handleNodeClick,
     };
   },
 };
@@ -149,6 +156,13 @@ export default {
   border-radius: 8px;
   background: var(--bg-secondary);
   border-left: 4px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
 
   &.severity-critical {
     border-left-color: var(--severity-critical);
