@@ -1055,9 +1055,9 @@ export default {
     },
     getProgressColor(node) {
       const pct = node?.time_percentage || 0;
-      if (pct > 30) return '#E57373';
-      if (pct > 10) return '#FFB74D';
-      return '#81C784';
+      if (pct > 30) return '#F5222D';  // Doris 红色 - 高耗时
+      if (pct > 10) return '#FA8C16';  // Doris 橙色 - 中等耗时
+      return '#52C41A';                // Doris 绿色 - 低耗时
     },
     selectNode(node) {
       this.selectedNodeId = node.id;
@@ -1199,14 +1199,15 @@ export default {
     },
     getNodeColor(node) {
       if (!node) return '#999';
-      if (node.is_hotspot) return '#e74c3c';
-      if (node.time_percentage > 15) return '#f39c12';
+      if (node.is_hotspot) return '#F5222D';  // Doris 红色 - 热点
       const name = node.operator_name || '';
-      if (name.includes('SCAN')) return '#9b59b6';
-      if (name.includes('JOIN')) return '#e67e22';
-      if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return '#1abc9c';
-      if (name.includes('EXCHANGE')) return '#3498db';
-      return '#95a5a6';
+      if (name.includes('SCAN')) return '#52C41A';      // Doris 绿色 - 数据源
+      if (name.includes('JOIN')) return '#2F54EB';      // Doris 蓝色 - 核心操作
+      if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return '#722ED1'; // Doris 紫色 - 聚合
+      if (name.includes('EXCHANGE') || name.includes('STREAM')) return '#5B8FF9';  // Doris 浅蓝 - 数据交换
+      if (name.includes('SORT')) return '#13C2C2';      // Doris 青色 - 排序
+      if (name.includes('PROJECT')) return '#8C8C8C';   // 灰色 - 投影
+      return '#8C8C8C';
     },
     getPctClass(node) {
       if (!node.time_percentage) return '';
@@ -1417,13 +1418,13 @@ export default {
 }
 
 .node-header {
-  fill: #757575;
-  &.header-scan { fill: #FF9800; }
-  &.header-join { fill: #FF9800; }
-  &.header-aggregate { fill: #9C27B0; }
-  &.header-exchange { fill: #607D8B; }
-  &.header-sort { fill: #00BCD4; }
-  &.header-project { fill: #9E9E9E; }
+  fill: #595959;
+  &.header-scan { fill: #52C41A; }      // Doris 绿色 - 数据源
+  &.header-join { fill: #2F54EB; }      // Doris 蓝色 - 核心操作
+  &.header-aggregate { fill: #722ED1; } // Doris 紫色 - 聚合
+  &.header-exchange { fill: #5B8FF9; }  // Doris 浅蓝 - 数据交换
+  &.header-sort { fill: #13C2C2; }      // Doris 青色 - 排序
+  &.header-project { fill: #8C8C8C; }   // 灰色 - 投影
 }
 
 .node-body { fill: white; }
