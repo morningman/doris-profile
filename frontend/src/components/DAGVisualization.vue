@@ -669,82 +669,83 @@ export default {
       // 构建节点映射
       const nodeIdMap = new Map(visibleNodes.map(n => [n.id, n]));
       
-      // 第一步：为每个节点分配初始水平位置（基于重心）
+      // 使用改进的树形布局算法：自底向上布局子树
       const nodePositions = new Map(); // nodeId -> x position
       
-      // 从最深层开始向上遍历（自底向上）
-      const depths = Array.from(visibleNodesByDepth.keys()).sort((a, b) => b - a);
+      // 找到根节点（depth = 0）
+      const rootNodes = visibleNodesByDepth.get(0) || [];
       
+      // 递归布局函数：为每个节点及其子树分配位置
+      let currentOffset = 0; // 全局水平偏移
+      
+      const layoutSubtree = (nodeId, startX) => {
+        const node = nodeIdMap.get(nodeId);
+        if (!node) return startX;
+        
+        if (!node.children || node.children.length === 0) {
+          // 叶子节点：直接分配位置
+          nodePositions.set(nodeId, startX);
+          return startX + LEVEL_WIDTH;
+        }
+        
+        // 有子节点：先布局所有子节点
+        let childX = startX;
+        const childPositions = [];
+        
+        node.children.forEach(childId => {
+          const childNode = nodeIdMap.get(childId);
+          if (childNode) {
+            childPositions.push(childX);
+            childX = layoutSubtree(childId, childX);
+          }
+        });
+        
+        // 父节点位置 = 子节点位置的中点
+        if (childPositions.length > 0) {
+          const firstChildPos = childPositions[0];
+          const lastChildPos = nodePositions.get(node.children[node.children.length - 1]) || firstChildPos;
+          nodePositions.set(nodeId, (firstChildPos + lastChildPos) / 2);
+        } else {
+          nodePositions.set(nodeId, startX);
+          childX = startX + LEVEL_WIDTH;
+        }
+        
+        return childX;
+      };
+      
+      // 从根节点开始布局
+      rootNodes.forEach(rootNode => {
+        currentOffset = layoutSubtree(rootNode.id, currentOffset);
+        currentOffset += LEVEL_WIDTH / 2; // 不同根节点之间增加额外间距
+      });
+      
+      // 确保所有节点都有位置（处理可能的孤立节点）
+      const depths = Array.from(visibleNodesByDepth.keys()).sort((a, b) => b - a);
       depths.forEach(depth => {
         const levelNodes = visibleNodesByDepth.get(depth);
-        
-        // 计算每个节点的"理想位置"（基于其子节点或父节点的位置）
-        const nodeOrder = levelNodes.map(node => {
-          let targetPos = 0;
-          let count = 0;
-          
-          // 如果有子节点，基于子节点的平均位置
-          if (node.children && node.children.length > 0) {
-            node.children.forEach(childId => {
-              if (nodePositions.has(childId)) {
-                targetPos += nodePositions.get(childId);
-                count++;
-              }
-            });
+        levelNodes.forEach(node => {
+          if (!nodePositions.has(node.id)) {
+            nodePositions.set(node.id, currentOffset);
+            currentOffset += LEVEL_WIDTH;
           }
-          
-          // 如果没有子节点（叶子节点），或者还没有位置信息，使用默认排序
-          if (count === 0) {
-            // 查找父节点
-            visibleNodes.forEach(potentialParent => {
-              if (potentialParent.children && potentialParent.children.includes(node.id)) {
-                if (nodePositions.has(potentialParent.id)) {
-                  targetPos += nodePositions.get(potentialParent.id);
-                  count++;
-                }
-              }
-            });
-          }
-          
-          const avgPos = count > 0 ? targetPos / count : 0;
-          
-          return {
-            node,
-            targetPos: avgPos,
-            // 备用排序键：Fragment > Pipeline > Plan Node ID
-            sortKey: `${node.fragment_id || 'F0'}-${node.pipeline_id || 'P0'}-${node.plan_node_id || 0}`
-          };
         });
-        
-        // 按目标位置排序，如果目标位置相同则按备用键排序
-        nodeOrder.sort((a, b) => {
-          if (Math.abs(a.targetPos - b.targetPos) > 0.1) {
-            return a.targetPos - b.targetPos;
-          }
-          return a.sortKey.localeCompare(b.sortKey);
-        });
-        
-        // 分配实际位置
-        nodeOrder.forEach((item, index) => {
-          const x = index * LEVEL_WIDTH;
-          nodePositions.set(item.node.id, x);
-        });
-        
-        // 更新层级节点列表（按新顺序）
-        visibleNodesByDepth.set(depth, nodeOrder.map(item => item.node));
       });
       
-      // 第二步：计算节点布局宽度
-      let maxNodesInLevel = 0;
-      visibleNodesByDepth.forEach(nodes => {
-        maxNodesInLevel = Math.max(maxNodesInLevel, nodes.length);
+      // 第二步：计算实际布局宽度
+      let minX = Infinity;
+      let maxX = -Infinity;
+      nodePositions.forEach(x => {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
       });
-      const totalWidth = maxNodesInLevel * LEVEL_WIDTH;
+      const totalWidth = maxX - minX + LEVEL_WIDTH;
       
       // SVG 宽度始终等于容器宽度（不超出容器）
       // 如果内容宽度大于容器，用户可以通过缩放和平移查看
       this.svgWidth = containerWidth;
-      const offsetX = Math.max(50, (this.svgWidth - totalWidth) / 2);
+      
+      // 计算居中偏移量，同时减去 minX 使布局从 0 开始
+      const offsetX = Math.max(50, (this.svgWidth - totalWidth) / 2) - minX;
 
       // 第三步：生成最终节点位置
       this.renderedNodes = visibleNodes.map(node => {
