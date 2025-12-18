@@ -162,6 +162,7 @@ impl FragmentParser {
             id: format!("Pipeline {}", id),
             metrics,
             operators,
+            raw_text: text.to_string(),
         })
     }
     

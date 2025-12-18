@@ -180,6 +180,10 @@
               <div class="detail-section sub-node-section">
                 <h4>🔹 {{ selectedNode.primaryNode.operator_name }}</h4>
                 <div class="detail-item">
+                  <span class="label">Plan Node ID:</span>
+                  <span class="value">{{ selectedNode.primaryNode.plan_node_id }}</span>
+                </div>
+                <div class="detail-item">
                   <span class="label">Fragment:</span>
                   <span class="value">{{ selectedNode.primaryNode.fragment_id }}</span>
                 </div>
@@ -187,15 +191,60 @@
                   <span class="label">Pipeline:</span>
                   <span class="value">{{ selectedNode.primaryNode.pipeline_id }}</span>
                 </div>
-                <div class="detail-item">
-                  <span class="label">执行时间:</span>
-                  <span class="value">{{ formatGraphTime(selectedNode.primaryNode) }}</span>
+                
+                <!-- PlanInfo -->
+                <div v-if="selectedNode.primaryNode.plan_info && selectedNode.primaryNode.plan_info.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">📋 PlanInfo</div>
+                  <div v-for="(item, index) in selectedNode.primaryNode.plan_info" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- CommonCounters -->
+                <div v-if="selectedNode.primaryNode.common_counters && selectedNode.primaryNode.common_counters.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">📊 Common Counters</div>
+                  <div v-for="(item, index) in selectedNode.primaryNode.common_counters" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- CustomCounters -->
+                <div v-if="selectedNode.primaryNode.custom_counters && selectedNode.primaryNode.custom_counters.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">⚙️ Custom Counters</div>
+                  <div v-for="(item, index) in selectedNode.primaryNode.custom_counters" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <!-- 次节点信息 (SINK) -->
               <div class="detail-section sub-node-section">
                 <h4>🔹 {{ selectedNode.secondaryNode.operator_name }}</h4>
+                <div class="detail-item">
+                  <span class="label">Plan Node ID:</span>
+                  <span class="value">{{ selectedNode.secondaryNode.plan_node_id }}</span>
+                </div>
                 <div class="detail-item">
                   <span class="label">Fragment:</span>
                   <span class="value">{{ selectedNode.secondaryNode.fragment_id }}</span>
@@ -204,9 +253,50 @@
                   <span class="label">Pipeline:</span>
                   <span class="value">{{ selectedNode.secondaryNode.pipeline_id }}</span>
                 </div>
-                <div class="detail-item">
-                  <span class="label">执行时间:</span>
-                  <span class="value">{{ formatGraphTime(selectedNode.secondaryNode) }}</span>
+                
+                <!-- PlanInfo -->
+                <div v-if="selectedNode.secondaryNode.plan_info && selectedNode.secondaryNode.plan_info.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">📋 PlanInfo</div>
+                  <div v-for="(item, index) in selectedNode.secondaryNode.plan_info" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- CommonCounters -->
+                <div v-if="selectedNode.secondaryNode.common_counters && selectedNode.secondaryNode.common_counters.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">📊 Common Counters</div>
+                  <div v-for="(item, index) in selectedNode.secondaryNode.common_counters" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- CustomCounters -->
+                <div v-if="selectedNode.secondaryNode.custom_counters && selectedNode.secondaryNode.custom_counters.length > 0" style="margin-top: 12px;">
+                  <div style="font-weight: 600; margin-bottom: 6px; color: #555;">⚙️ Custom Counters</div>
+                  <div v-for="(item, index) in selectedNode.secondaryNode.custom_counters" :key="index" class="metric-item">
+                    <div class="metric-label">{{ item.key }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                    <div v-if="item.children && item.children.length > 0" class="metric-children">
+                      <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                        <div class="metric-label">{{ child.key }}</div>
+                        <div class="metric-value">{{ child.value }}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -215,15 +305,55 @@
             <div v-else>
               <div class="detail-section">
                 <h4>基本信息</h4>
+                <div class="detail-item"><span class="label">Operator:</span><span class="value">{{ selectedNode.operator_name }}</span></div>
                 <div class="detail-item"><span class="label">Plan Node ID:</span><span class="value">{{ selectedNode.plan_node_id }}</span></div>
                 <div class="detail-item"><span class="label">Fragment:</span><span class="value">{{ selectedNode.fragment_id }}</span></div>
                 <div class="detail-item"><span class="label">Pipeline:</span><span class="value">{{ selectedNode.pipeline_id }}</span></div>
               </div>
-              <div class="detail-section">
-                <h4>性能指标</h4>
-                <div class="detail-item"><span class="label">执行时间:</span><span class="value">{{ formatGraphTime(selectedNode) }}</span></div>
-                <div class="detail-item"><span class="label">时间占比:</span><span class="value">{{ formatPct(selectedNode.time_percentage) }}</span></div>
-                <div class="detail-item"><span class="label">处理行数:</span><span class="value">{{ formatNumber(selectedNode.metrics?.rows_returned) }}</span></div>
+              
+              <!-- PlanInfo -->
+              <div v-if="selectedNode.plan_info && selectedNode.plan_info.length > 0" class="detail-section">
+                <h4>📋 PlanInfo</h4>
+                <div v-for="(item, index) in selectedNode.plan_info" :key="index" class="metric-item">
+                  <div class="metric-label">{{ item.key }}</div>
+                  <div class="metric-value">{{ item.value }}</div>
+                  <div v-if="item.children && item.children.length > 0" class="metric-children">
+                    <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                      <div class="metric-label">{{ child.key }}</div>
+                      <div class="metric-value">{{ child.value }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- CommonCounters -->
+              <div v-if="selectedNode.common_counters && selectedNode.common_counters.length > 0" class="detail-section">
+                <h4>📊 Common Counters</h4>
+                <div v-for="(item, index) in selectedNode.common_counters" :key="index" class="metric-item">
+                  <div class="metric-label">{{ item.key }}</div>
+                  <div class="metric-value">{{ item.value }}</div>
+                  <div v-if="item.children && item.children.length > 0" class="metric-children">
+                    <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                      <div class="metric-label">{{ child.key }}</div>
+                      <div class="metric-value">{{ child.value }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- CustomCounters -->
+              <div v-if="selectedNode.custom_counters && selectedNode.custom_counters.length > 0" class="detail-section">
+                <h4>⚙️ Custom Counters</h4>
+                <div v-for="(item, index) in selectedNode.custom_counters" :key="index" class="metric-item">
+                  <div class="metric-label">{{ item.key }}</div>
+                  <div class="metric-value">{{ item.value }}</div>
+                  <div v-if="item.children && item.children.length > 0" class="metric-children">
+                    <div v-for="(child, childIndex) in item.children" :key="childIndex" class="metric-child">
+                      <div class="metric-label">{{ child.key }}</div>
+                      <div class="metric-value">{{ child.value }}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1249,6 +1379,58 @@ export default {
   
   .label { color: #666; }
   .value { color: #333; font-weight: 500; }
+}
+
+.metric-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 12px;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .metric-label {
+    color: #3498db;
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+  
+  .metric-value {
+    color: #555;
+    line-height: 1.6;
+    word-break: break-word;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 11px;
+  }
+  
+  .metric-children {
+    margin-top: 6px;
+    margin-left: 16px;
+    padding-left: 12px;
+    border-left: 2px solid #e0e0e0;
+    
+    .metric-child {
+      margin-bottom: 6px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .metric-label {
+        color: #e67e22;
+        font-weight: 500;
+        margin-bottom: 2px;
+        font-size: 10px;
+      }
+      
+      .metric-value {
+        color: #666;
+        font-size: 10px;
+      }
+    }
+  }
 }
 
 .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }

@@ -34,6 +34,8 @@ static METRIC_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// Parsed operator with all details
+use crate::models::MetricItem;
+
 #[derive(Debug, Clone)]
 pub struct ParsedOperator {
     pub name: String,
@@ -41,9 +43,9 @@ pub struct ParsedOperator {
     pub nereids_id: Option<i32>,
     pub dest_id: Option<i32>,  // For DATA_STREAM_SINK
     pub exchange_type: Option<String>,  // For LOCAL_EXCHANGE
-    pub plan_info: HashMap<String, String>,
-    pub common_counters: HashMap<String, String>,
-    pub custom_counters: HashMap<String, String>,
+    pub plan_info: Vec<MetricItem>,
+    pub common_counters: Vec<MetricItem>,
+    pub custom_counters: Vec<MetricItem>,
     pub table_name: Option<String>,
 }
 
@@ -144,53 +146,92 @@ impl OperatorParser {
         // Parse header to extract name, id, nereids_id
         let (name, id, nereids_id, dest_id, exchange_type, table_name) = Self::parse_header(header)?;
         
-        let mut plan_info = HashMap::new();
-        let mut common_counters = HashMap::new();
-        let mut custom_counters = HashMap::new();
+        let mut plan_info = Vec::new();
+        let mut common_counters = Vec::new();
+        let mut custom_counters = Vec::new();
         
         let mut current_section = "none";
-        let mut in_plan_info = false;
+        let mut i = 1;
         
-        for line in lines.iter().skip(1) {
+        while i < lines.len() {
+            let line = lines[i];
             let trimmed = line.trim();
             
             if trimmed.is_empty() {
+                i += 1;
                 continue;
             }
             
             // Check for section headers
-            if trimmed == "CommonCounters:" {
+            if trimmed == "- PlanInfo" {
+                current_section = "plan";
+                i += 1;
+                continue;
+            } else if trimmed == "CommonCounters:" {
                 current_section = "common";
-                in_plan_info = false;
+                i += 1;
                 continue;
             } else if trimmed == "CustomCounters:" {
                 current_section = "custom";
-                in_plan_info = false;
-                continue;
-            } else if trimmed == "- PlanInfo" {
-                in_plan_info = true;
-                current_section = "plan";
-                continue;
-            } else if trimmed.starts_with("RuntimeFilterInfo:") {
-                // RuntimeFilterInfo is part of custom counters
-                current_section = "custom";
+                i += 1;
                 continue;
             }
             
-            // Parse metric lines
+            // Parse metric lines with potential children
             if let Some(caps) = METRIC_REGEX.captures(trimmed) {
                 let key = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
                 let value = caps.get(2).map(|m| m.as_str().trim()).unwrap_or("");
+                let current_indent = Self::get_indent(line);
                 
-                if in_plan_info {
-                    plan_info.insert(key.to_string(), value.to_string());
-                } else {
-                    match current_section {
-                        "common" => { common_counters.insert(key.to_string(), value.to_string()); }
-                        "custom" => { custom_counters.insert(key.to_string(), value.to_string()); }
-                        _ => {}
+                // Check for children in next lines
+                let mut children = Vec::new();
+                let mut j = i + 1;
+                while j < lines.len() {
+                    let next_line = lines[j];
+                    let next_trimmed = next_line.trim();
+                    
+                    if next_trimmed.is_empty() {
+                        j += 1;
+                        continue;
                     }
+                    
+                    let next_indent = Self::get_indent(next_line);
+                    
+                    // Check if it's a child (more indented and starts with -)
+                    if next_indent > current_indent && next_trimmed.starts_with('-') {
+                        if let Some(caps) = METRIC_REGEX.captures(next_trimmed) {
+                            let child_key = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
+                            let child_value = caps.get(2).map(|m| m.as_str().trim()).unwrap_or("");
+                            children.push(MetricItem {
+                                key: child_key.to_string(),
+                                value: child_value.to_string(),
+                                children: Vec::new(),
+                            });
+                            j += 1;
+                            continue;
+                        }
+                    }
+                    
+                    // Not a child, stop
+                    break;
                 }
+                
+                let item = MetricItem {
+                    key: key.to_string(),
+                    value: value.to_string(),
+                    children,
+                };
+                
+                match current_section {
+                    "plan" => { plan_info.push(item); }
+                    "common" => { common_counters.push(item); }
+                    "custom" => { custom_counters.push(item); }
+                    _ => {}
+                }
+                
+                i = j;
+            } else {
+                i += 1;
             }
         }
         
@@ -205,6 +246,11 @@ impl OperatorParser {
             custom_counters,
             table_name,
         })
+    }
+    
+    /// Get the indentation level of a line (number of leading spaces)
+    fn get_indent(line: &str) -> usize {
+        line.len() - line.trim_start().len()
     }
     
     /// Parse operator header line
@@ -292,37 +338,45 @@ impl OperatorParser {
         }
         
         // Add plan info
-        for (k, v) in &parsed.plan_info {
-            metrics.insert(format!("plan_{}", k), v.clone());
+        for item in &parsed.plan_info {
+            metrics.insert(format!("plan_{}", item.key), item.value.clone());
         }
         
-        // Add common counters
-        for (k, v) in &parsed.common_counters {
-            metrics.insert(k.clone(), v.clone());
+        // Add common counters (flattened - including children)
+        for item in &parsed.common_counters {
+            metrics.insert(item.key.clone(), item.value.clone());
+            for child in &item.children {
+                metrics.insert(format!("{}.{}", item.key, child.key), child.value.clone());
+            }
         }
         
-        // Add custom counters
-        for (k, v) in &parsed.custom_counters {
-            metrics.insert(k.clone(), v.clone());
+        // Add custom counters (flattened - including children)
+        for item in &parsed.custom_counters {
+            metrics.insert(item.key.clone(), item.value.clone());
+            for child in &item.children {
+                metrics.insert(format!("{}.{}", item.key, child.key), child.value.clone());
+            }
         }
         
         metrics
     }
     
-    /// Get indentation of a line
-    fn get_indent(line: &str) -> usize {
-        line.len() - line.trim_start().len()
+    /// Find a metric by key in a Vec<MetricItem>
+    fn find_metric<'a>(items: &'a [MetricItem], key: &str) -> Option<&'a str> {
+        items.iter()
+            .find(|item| item.key == key)
+            .map(|item| item.value.as_str())
     }
     
     /// Get the execution time in nanoseconds from an operator
     pub fn get_exec_time_ns(operator: &ParsedOperator) -> Option<i64> {
-        operator.common_counters.get("ExecTime")
+        Self::find_metric(&operator.common_counters, "ExecTime")
             .and_then(|v| ValueParser::parse_aggregated(v).avg)
     }
     
     /// Get rows produced by an operator
     pub fn get_rows_produced(operator: &ParsedOperator) -> Option<i64> {
-        operator.common_counters.get("RowsProduced")
+        Self::find_metric(&operator.common_counters, "RowsProduced")
             .and_then(|v| {
                 let agg = ValueParser::parse_aggregated(v);
                 agg.sum.or(agg.avg)
@@ -330,7 +384,7 @@ impl OperatorParser {
     }
     
     pub fn get_input_rows(operator: &ParsedOperator) -> Option<i64> {
-        operator.common_counters.get("InputRows")
+        Self::find_metric(&operator.common_counters, "InputRows")
             .and_then(|v| {
                 let agg = ValueParser::parse_aggregated(v);
                 agg.sum.or(agg.avg)

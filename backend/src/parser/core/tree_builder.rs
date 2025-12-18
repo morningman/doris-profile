@@ -22,9 +22,7 @@ impl TreeBuilder {
         // First pass: create all nodes and track their metadata
         for fragment in fragments {
             for pipeline in &fragment.pipelines {
-                let parsed_operators = OperatorParser::extract_parsed_operators(
-                    &Self::reconstruct_pipeline_text(pipeline)
-                );
+                let parsed_operators = OperatorParser::extract_parsed_operators(&pipeline.raw_text);
                 
                 for parsed_op in parsed_operators {
                     let node = Self::create_tree_node(
@@ -64,14 +62,16 @@ impl TreeBuilder {
         let exec_time = OperatorParser::get_exec_time_ns(parsed);
         let rows = OperatorParser::get_rows_produced(parsed);
         let input_rows = OperatorParser::get_input_rows(parsed);
-        let memory = parsed.common_counters.get("MemoryUsagePeak")
-            .and_then(|v| {
-                let agg = ValueParser::parse_aggregated(v);
+        let memory = parsed.common_counters.iter()
+            .find(|item| item.key == "MemoryUsagePeak")
+            .and_then(|item| {
+                let agg = ValueParser::parse_aggregated(&item.value);
                 agg.sum.or(agg.avg).map(|v| v as u64)
             });
         
-        let exec_time_raw = parsed.common_counters.get("ExecTime")
-            .and_then(|v| ValueParser::extract_first_value(v));
+        let exec_time_raw = parsed.common_counters.iter()
+            .find(|item| item.key == "ExecTime")
+            .and_then(|item| ValueParser::extract_first_value(&item.value));
         
         let metrics = OperatorMetrics {
             operator_total_time: exec_time.map(|t| t as u64),
@@ -85,8 +85,8 @@ impl TreeBuilder {
         
         // Build unique metrics from plan_info and custom_counters
         let mut unique_metrics = HashMap::new();
-        for (k, v) in &parsed.plan_info {
-            unique_metrics.insert(k.clone(), v.clone());
+        for item in &parsed.plan_info {
+            unique_metrics.insert(item.key.clone(), item.value.clone());
         }
         if let Some(ref tn) = parsed.table_name {
             unique_metrics.insert("table_name".to_string(), tn.clone());
@@ -123,6 +123,9 @@ impl TreeBuilder {
             is_most_consuming: false,
             is_second_most_consuming: false,
             unique_metrics,
+            plan_info: parsed.plan_info.clone(),
+            common_counters: parsed.common_counters.clone(),
+            custom_counters: parsed.custom_counters.clone(),
         }
     }
     
@@ -450,6 +453,9 @@ impl TreeBuilder {
             is_most_consuming: false,
             is_second_most_consuming: false,
             unique_metrics: HashMap::new(),
+            plan_info: Vec::new(),
+            common_counters: Vec::new(),
+            custom_counters: Vec::new(),
         })
     }
     

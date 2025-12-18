@@ -53,6 +53,7 @@ pub struct Pipeline {
     pub id: String,
     pub metrics: HashMap<String, String>,
     pub operators: Vec<Operator>,
+    pub raw_text: String,  // Store original pipeline text for re-parsing
 }
 
 /// Operator within a pipeline
@@ -106,6 +107,24 @@ pub struct ExecutionTreeNode {
     
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub unique_metrics: HashMap<String, String>,
+    
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub plan_info: Vec<MetricItem>,
+    
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub common_counters: Vec<MetricItem>,
+    
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub custom_counters: Vec<MetricItem>,
+}
+
+/// Represents a metric item with potential nested children
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricItem {
+    pub key: String,
+    pub value: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub children: Vec<MetricItem>,
 }
 
 /// Type of execution node
