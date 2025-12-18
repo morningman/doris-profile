@@ -117,10 +117,10 @@
                 <rect v-if="node.time_percentage" class="progress-fill" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
                 <rect class="node-border" :width="NODE_WIDTH" :height="NODE_HEIGHT" rx="3" />
                 
-                <!-- 节点标题（显示合并标记） -->
+                <!-- 节点标题（包含 ID 信息） -->
                 <text class="node-title" x="10" :y="19">
-                  {{ formatOperatorName(node.operator_name) }}
-                  <tspan v-if="node.isMerged" class="merged-badge" dx="5" style="font-size: 12px; fill: #FFD700;">⚡</tspan>
+                  {{ formatNodeTitle(node) }}
+                  <tspan v-if="node.isMerged" class="merged-badge" dx="5" style="font-size: 11px; fill: #FFD700;">⚡</tspan>
                 </text>
                 
                 <!-- 节点详情 -->
@@ -141,13 +141,10 @@
                 </template>
                 <template v-else>
                   <!-- 普通节点 -->
-                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 15">
-                    plan_node_id={{ node.plan_node_id || 'N/A' }}
-                  </text>
-                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 32">
+                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 20">
                     耗时: {{ formatGraphTime(node) }}
                   </text>
-                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 32" text-anchor="end">
+                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 20" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
                   </text>
                 </template>
@@ -924,6 +921,29 @@ export default {
       if (!name) return 'UNKNOWN';
       return name.replace(/_OPERATOR$/, '').replace(/_/g, ' ');
     },
+    formatNodeTitle(node) {
+      if (!node) return 'UNKNOWN';
+      const operatorName = this.formatOperatorName(node.operator_name);
+      const planNodeId = node.plan_node_id !== undefined && node.plan_node_id !== null ? node.plan_node_id : '?';
+      
+      // 提取纯数字的 Fragment ID（可能是 "Fragment 2" 或 "2"）
+      let fragmentId = '?';
+      if (node.fragment_id !== undefined && node.fragment_id !== null) {
+        const fid = String(node.fragment_id);
+        const match = fid.match(/\d+/);
+        fragmentId = match ? match[0] : fid;
+      }
+      
+      // 提取纯数字的 Pipeline ID（可能是 "Pipeline 0" 或 "0"）
+      let pipelineId = '?';
+      if (node.pipeline_id !== undefined && node.pipeline_id !== null) {
+        const pid = String(node.pipeline_id);
+        const match = pid.match(/\d+/);
+        pipelineId = match ? match[0] : pid;
+      }
+      
+      return `${operatorName}(${planNodeId}-F${fragmentId}-P${pipelineId})`;
+    },
     formatGraphTime(node) {
       if (!node?.metrics) return 'N/A';
       const time = this.getNodeTime(node);
@@ -1277,7 +1297,7 @@ export default {
 .node-body { fill: white; }
 .progress-bg { fill: #F5F5F5; }
 .node-border { fill: none; stroke: #E0E0E0; stroke-width: 1; }
-.node-title { font-size: 13px; font-weight: 600; fill: white; pointer-events: none; }
+.node-title { font-size: 11px; font-weight: 600; fill: white; pointer-events: none; }
 .node-detail { font-size: 11px; fill: #666; pointer-events: none; }
 .node-detail-small { font-size: 10px; fill: #999; pointer-events: none; }
 .node-percentage { font-size: 12px; font-weight: 600; fill: #333; pointer-events: none; }
