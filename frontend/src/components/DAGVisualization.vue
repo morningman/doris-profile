@@ -135,7 +135,7 @@
                     + {{ node.secondaryNode.operator_name }}
                   </text>
                   <text class="node-detail" x="10" :y="getNodeHeaderHeight(node) + 40">
-                    总耗时: {{ formatGraphTime(node) }}
+                    Total Cost: {{ formatGraphTime(node) }}
                   </text>
                   <text class="node-percentage" :x="NODE_WIDTH - 10" :y="getNodeHeaderHeight(node) + 40" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
@@ -144,7 +144,7 @@
                 <template v-else>
                   <!-- 普通节点 -->
                   <text class="node-detail" x="10" :y="getNodeHeaderHeight(node) + 20">
-                    耗时: {{ formatGraphTime(node) }}
+                    Cost: {{ formatGraphTime(node) }}
                   </text>
                   <text class="node-percentage" :x="NODE_WIDTH - 10" :y="getNodeHeaderHeight(node) + 20" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
