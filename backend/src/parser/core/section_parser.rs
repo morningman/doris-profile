@@ -99,6 +99,7 @@ impl SectionParser {
             query_type: fields.get("Task Type").cloned(),
             user: fields.get("User").cloned(),
             default_db: fields.get("Default Db").cloned(),
+            default_catalog: fields.get("Default Catalog").cloned(),
             variables: HashMap::new(),
             total_time_ms,
             query_peak_memory: None,

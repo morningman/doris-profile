@@ -29,6 +29,9 @@ pub struct ProfileSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_db: Option<String>,
     
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_catalog: Option<String>,
+    
     pub variables: HashMap<String, String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]

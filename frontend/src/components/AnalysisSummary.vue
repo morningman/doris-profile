@@ -15,14 +15,12 @@
       <!-- Query Info -->
       <div class="info-section">
         <h3><i class="fas fa-info-circle"></i> Query Summary</h3>
-        <div class="info-grid">
-          <div class="info-item">
+        
+        <!-- 第一行：Query ID 和 Status -->
+        <div class="info-row">
+          <div class="info-item info-item-wide">
             <span class="info-label">Query ID</span>
-            <span class="info-value">{{ summary?.query_id || "N/A" }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Total Time</span>
-            <span class="info-value">{{ summary?.total_time || "N/A" }}</span>
+            <span class="info-value query-id">{{ summary?.query_id || "N/A" }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">Status</span>
@@ -30,11 +28,48 @@
               {{ summary?.query_state || "N/A" }}
             </span>
           </div>
+        </div>
+        
+        <!-- 第二行：Total Time, Start Time, End Time -->
+        <div class="info-row">
+          <div class="info-item">
+            <span class="info-label">Total Time</span>
+            <span class="info-value total-time-highlight">{{ summary?.total_time || "N/A" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Start Time</span>
+            <span class="info-value">{{ summary?.start_time || "N/A" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">End Time</span>
+            <span class="info-value">{{ summary?.end_time || "N/A" }}</span>
+          </div>
+        </div>
+        
+        <!-- 其他行：按 Profile 顺序 -->
+        <div class="info-row">
+          <div class="info-item">
+            <span class="info-label">Task Type</span>
+            <span class="info-value">{{ summary?.query_type || "N/A" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">User</span>
+            <span class="info-value">{{ summary?.user || "N/A" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Default Catalog</span>
+            <span class="info-value">{{ summary?.default_catalog || "N/A" }}</span>
+          </div>
+        </div>
+        
+        <div class="info-row">
+          <div class="info-item">
+            <span class="info-label">Default Database</span>
+            <span class="info-value">{{ summary?.default_db || "N/A" }}</span>
+          </div>
           <div class="info-item">
             <span class="info-label">Doris Version</span>
-            <span class="info-value">{{
-              summary?.doris_version || "N/A"
-            }}</span>
+            <span class="info-value">{{ summary?.doris_version || "N/A" }}</span>
           </div>
         </div>
       </div>
@@ -214,8 +249,12 @@ export default {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: 150px 1fr 1fr;
+  grid-template-columns: 150px 1.5fr 1fr;
   gap: 24px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 150px 1fr;
+  }
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -289,16 +328,37 @@ export default {
   }
 }
 
-.info-grid {
+.info-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  margin-bottom: 12px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  &.info-item-wide {
+    grid-column: span 2;
+    
+    @media (max-width: 1200px) {
+      grid-column: span 1;
+    }
+  }
 
   .info-label {
     font-size: 12px;
@@ -309,6 +369,20 @@ export default {
     font-weight: 500;
     color: var(--text-primary);
     word-break: break-all;
+
+    &.query-id {
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 13px;
+    }
+
+    &.total-time-highlight {
+      color: #409EFF;
+      font-weight: 700;
+      font-size: 16px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    }
 
     &.status-success {
       color: #67c23a;
