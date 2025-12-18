@@ -3,10 +3,10 @@ use crate::constants::scores;
 use crate::ai::AiDiagnosisService;
 use crate::config::DefaultSuggestionsConfig;
 
-/// SuggestionEngine generates optimization suggestions based on detected hotspots
-pub struct SuggestionEngine;
+/// OptimizationAdvisor generates optimization suggestions based on detected hotspots
+pub struct OptimizationAdvisor;
 
-impl SuggestionEngine {
+impl OptimizationAdvisor {
     /// Fill suggestions for hotspots using AI or default suggestions
     pub async fn fill_suggestions(
         hotspots: &mut Vec<HotSpot>,
@@ -292,24 +292,24 @@ mod tests {
     #[test]
     fn test_generate_conclusion_no_hotspots() {
         let profile = create_test_profile();
-        let conclusion = SuggestionEngine::generate_conclusion(&[], &profile);
+        let conclusion = OptimizationAdvisor::generate_conclusion(&[], &profile);
         assert!(conclusion.contains("no significant performance issues"));
     }
     
     #[test]
     fn test_calculate_score_no_hotspots() {
         let profile = create_test_profile();
-        let score = SuggestionEngine::calculate_performance_score(&[], &profile);
+        let score = OptimizationAdvisor::calculate_performance_score(&[], &profile);
         assert!(score >= 90);
     }
     
     #[test]
     fn test_score_category() {
-        assert_eq!(SuggestionEngine::get_score_category(95), "Excellent");
-        assert_eq!(SuggestionEngine::get_score_category(75), "Good");
-        assert_eq!(SuggestionEngine::get_score_category(55), "Fair");
-        assert_eq!(SuggestionEngine::get_score_category(35), "Poor");
-        assert_eq!(SuggestionEngine::get_score_category(15), "Critical");
+        assert_eq!(OptimizationAdvisor::get_score_category(95), "Excellent");
+        assert_eq!(OptimizationAdvisor::get_score_category(75), "Good");
+        assert_eq!(OptimizationAdvisor::get_score_category(55), "Fair");
+        assert_eq!(OptimizationAdvisor::get_score_category(35), "Poor");
+        assert_eq!(OptimizationAdvisor::get_score_category(15), "Critical");
     }
 }
 

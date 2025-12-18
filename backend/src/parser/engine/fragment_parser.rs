@@ -3,7 +3,7 @@
 
 use crate::models::{Fragment, Pipeline};
 use crate::parser::error::ParseResult;
-use crate::parser::core::OperatorParser;
+use crate::parser::engine::OperatorParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;

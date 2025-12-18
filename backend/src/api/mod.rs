@@ -3,7 +3,7 @@ use serde_json::json;
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use crate::static_files::StaticFiles;
-use crate::{AiDiagnosisService, ProfileComposer, HotSpotDetector, SuggestionEngine};
+use crate::{AiDiagnosisService, ProfileComposer, PerformanceBottleneck, OptimizationAdvisor};
 use crate::config::DefaultSuggestionsConfig;
 
 #[derive(Deserialize)]
@@ -155,10 +155,10 @@ async fn analyze_profile_with_ai(
         .map_err(|e| format!("Failed to parse profile: {:?}", e))?;
     
     // 2. Detect hotspots
-    let mut hotspots = HotSpotDetector::analyze(&profile);
+    let mut hotspots = PerformanceBottleneck::analyze(&profile);
     
     // 3. Fill suggestions with default config only (skip AI for initial load)
-    SuggestionEngine::fill_suggestions(
+    OptimizationAdvisor::fill_suggestions(
         &mut hotspots,
         &profile,
         state.ai_service.as_deref(),
@@ -167,9 +167,9 @@ async fn analyze_profile_with_ai(
     ).await;
     
     // 4. Generate conclusion and score
-    let conclusion = SuggestionEngine::generate_conclusion(&hotspots, &profile);
-    let suggestions = SuggestionEngine::generate_suggestions(&hotspots);
-    let performance_score = SuggestionEngine::calculate_performance_score(&hotspots, &profile);
+    let conclusion = OptimizationAdvisor::generate_conclusion(&hotspots, &profile);
+    let suggestions = OptimizationAdvisor::generate_suggestions(&hotspots);
+    let performance_score = OptimizationAdvisor::calculate_performance_score(&hotspots, &profile);
     let execution_tree = profile.execution_tree.clone();
     let summary = Some(profile.summary.clone());
     
@@ -296,9 +296,9 @@ async fn diagnose_single_node(
     
     // 4. Use default suggestion as fallback
     // Find corresponding hotspot to get operator name and severity
-    let hotspots = HotSpotDetector::analyze(&profile);
+    let hotspots = PerformanceBottleneck::analyze(&profile);
     if let Some(hotspot) = hotspots.iter().find(|h| h.node_id == node_id) {
-        let default_suggestion = SuggestionEngine::get_default_suggestion_public(
+        let default_suggestion = OptimizationAdvisor::get_default_suggestion_public(
             &hotspot.operator_name,
             &hotspot.severity,
             &state.default_config,

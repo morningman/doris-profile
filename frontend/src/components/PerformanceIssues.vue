@@ -1,6 +1,6 @@
 <template>
-  <div class="hotspots-panel">
-    <!-- Hotspots List -->
+  <div class="performance-issues">
+    <!-- Performance Issues List -->
     <div v-if="hotspots.length === 0" class="no-issues">
       <i class="fas fa-check-circle"></i>
       <p>No performance issues detected</p>
@@ -103,7 +103,7 @@ marked.setOptions({
 });
 
 export default {
-  name: "HotSpotsPanel",
+  name: "PerformanceIssues",
   props: {
     hotspots: {
       type: Array,
@@ -211,7 +211,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.hotspots-panel {
+.performance-issues {
   height: 100%;
 }
 

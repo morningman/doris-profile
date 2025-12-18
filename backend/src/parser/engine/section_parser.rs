@@ -3,7 +3,7 @@
 
 use crate::models::ProfileSummary;
 use crate::parser::error::{ParseError, ParseResult};
-use crate::parser::core::ValueParser;
+use crate::parser::engine::ValueParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;

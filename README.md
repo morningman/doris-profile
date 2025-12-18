@@ -34,19 +34,26 @@ Doris Profile Analyzer is a powerful tool designed to parse, analyze, and visual
 #### Prerequisites
 
 - Rust 1.70+
-- Node.js 18+ (only for building from source)
-- make
+- Node.js 16+ (only for building from source)
+- System dependencies: gcc, pkg-config, openssl-dev
 
-#### Installation & Build
+#### Automated Setup (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/your-org/doris-profile-analyzer.git
 cd doris-profile-analyzer
 
+# Install system dependencies automatically
+./install-deps.sh
+
 # Build single executable with embedded frontend
 make build
 ```
+
+#### Manual Installation
+
+If you prefer to install dependencies manually or the script doesn't work for your system, see **[BUILD.md](BUILD.md)** for detailed instructions.
 
 This will create a single executable at `build/doris-profile-analyzer` with all frontend assets embedded.
 

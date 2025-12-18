@@ -2,9 +2,9 @@
 //! Builds the DAG structure by connecting operators within pipelines and across fragments
 
 use crate::models::*;
-use crate::parser::core::ValueParser;
-use crate::parser::core::operator_parser::ParsedOperator;
-use crate::parser::core::OperatorParser;
+use crate::parser::engine::ValueParser;
+use crate::parser::engine::operator_parser::ParsedOperator;
+use crate::parser::engine::OperatorParser;
 use crate::constants::thresholds;
 use std::collections::HashMap;
 

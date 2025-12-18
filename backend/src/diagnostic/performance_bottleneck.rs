@@ -1,10 +1,10 @@
 use crate::models::*;
 use crate::constants::thresholds;
 
-/// HotSpotDetector analyzes execution tree nodes to identify performance bottlenecks
-pub struct HotSpotDetector;
+/// PerformanceBottleneck analyzes execution tree nodes to identify performance bottlenecks
+pub struct PerformanceBottleneck;
 
-impl HotSpotDetector {
+impl PerformanceBottleneck {
     /// Analyze a profile and return a list of detected hotspots
     pub fn analyze(profile: &Profile) -> Vec<HotSpot> {
         let mut hotspots = Vec::new();
@@ -155,7 +155,7 @@ mod tests {
             unique_metrics: HashMap::new(),
         };
         
-        let severity = HotSpotDetector::determine_severity(&node);
+        let severity = PerformanceBottleneck::determine_severity(&node);
         assert_eq!(severity, HotspotSeverity::Critical);
     }
 }

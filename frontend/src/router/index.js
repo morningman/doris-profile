@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
-import ProfileAnalyzer from "../views/ProfileAnalyzer.vue";
+import QueryDashboard from "../views/QueryDashboard.vue";
 
 const routes = [
   {
     path: "/",
-    name: "ProfileAnalyzer",
-    component: ProfileAnalyzer,
+    name: "QueryDashboard",
+    component: QueryDashboard,
   },
 ];
 

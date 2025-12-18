@@ -1,5 +1,5 @@
 <template>
-  <div class="dag-visualization">
+  <div class="execution-graph">
     <!-- View Mode Toggle -->
     <div class="view-controls">
       <div class="view-tabs">
@@ -427,7 +427,7 @@
 
 <script>
 export default {
-  name: 'DAGVisualization',
+  name: 'ExecutionGraph',
   props: {
     tree: { type: Object, required: true }
   },
@@ -1242,7 +1242,7 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.dag-visualization {
+.execution-graph {
   width: 100%;
   height: 100%;
   min-height: 500px;

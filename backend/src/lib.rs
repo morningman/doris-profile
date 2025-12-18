@@ -1,6 +1,6 @@
 pub mod parser;
 pub mod models;
-pub mod analyzer;
+pub mod diagnostic;
 pub mod api;
 pub mod constants;
 pub mod static_files;
@@ -8,8 +8,8 @@ pub mod config;
 pub mod ai;
 
 pub use models::*;
-pub use analyzer::hotspot_detector::HotSpotDetector;
-pub use analyzer::suggestion_engine::SuggestionEngine;
+pub use diagnostic::performance_bottleneck::PerformanceBottleneck;
+pub use diagnostic::optimization_advisor::OptimizationAdvisor;
 pub use parser::ProfileComposer;
 pub use config::ConfigLoader;
 pub use ai::AiDiagnosisService;
@@ -20,10 +20,10 @@ pub fn analyze_profile(profile_text: &str) -> Result<ProfileAnalysisResponse, St
     let profile = composer.parse(profile_text)
         .map_err(|e| format!("Failed to parse profile: {:?}", e))?;
 
-    let hotspots = HotSpotDetector::analyze(&profile);
-    let conclusion = SuggestionEngine::generate_conclusion(&hotspots, &profile);
-    let suggestions = SuggestionEngine::generate_suggestions(&hotspots);
-    let performance_score = SuggestionEngine::calculate_performance_score(&hotspots, &profile);
+    let hotspots = PerformanceBottleneck::analyze(&profile);
+    let conclusion = OptimizationAdvisor::generate_conclusion(&hotspots, &profile);
+    let suggestions = OptimizationAdvisor::generate_suggestions(&hotspots);
+    let performance_score = OptimizationAdvisor::calculate_performance_score(&hotspots, &profile);
     let execution_tree = profile.execution_tree.clone();
     let summary = Some(profile.summary.clone());
 

@@ -118,18 +118,18 @@
             <h3><i class="fas fa-project-diagram"></i> Execution Plan</h3>
             <span class="node-count">{{ executionTree?.nodes?.length || 0 }} nodes</span>
           </div>
-          <DAGVisualization ref="dagVisualization" :tree="executionTree" />
+          <ExecutionGraph ref="executionGraph" :tree="executionTree" />
         </div>
 
-        <!-- Hotspots Panel -->
+        <!-- Performance Issues Panel -->
         <div class="card hotspots-card">
           <div class="card-header">
-            <h3><i class="fas fa-fire"></i> Performance Hotspots</h3>
+            <h3><i class="fas fa-fire"></i> Performance Issues</h3>
             <span class="badge" :class="hotspotBadgeClass">
               {{ hotspots.length }} issue(s)
             </span>
           </div>
-          <HotSpotsPanel 
+          <PerformanceIssues 
             :hotspots="hotspots" 
             :suggestions="suggestions" 
             :profile-text="profileText"
@@ -148,17 +148,17 @@ import { useStore } from "vuex";
 import FileUploader from "@/components/FileUploader.vue";
 import TextInput from "@/components/TextInput.vue";
 import AnalysisSummary from "@/components/AnalysisSummary.vue";
-import DAGVisualization from "@/components/DAGVisualization.vue";
-import HotSpotsPanel from "@/components/HotSpotsPanel.vue";
+import ExecutionGraph from "@/components/ExecutionGraph.vue";
+import PerformanceIssues from "@/components/PerformanceIssues.vue";
 
 export default {
-  name: "ProfileAnalyzer",
+  name: "QueryDashboard",
   components: {
     FileUploader,
     TextInput,
     AnalysisSummary,
-    DAGVisualization,
-    HotSpotsPanel,
+    ExecutionGraph,
+    PerformanceIssues,
   },
   setup() {
     const store = useStore();
@@ -166,7 +166,7 @@ export default {
     const showDebug = ref(false);
     const debugTab = ref("tree");
     const copySuccess = ref(false);
-    const dagVisualization = ref(null);
+    const executionGraph = ref(null);
 
     // Getters
     const hasResult = computed(() => store.getters.hasResult);
@@ -256,8 +256,8 @@ export default {
     };
 
     const handleHotspotNodeClick = (nodeId) => {
-      if (dagVisualization.value) {
-        dagVisualization.value.locateAndCenterNode(nodeId);
+      if (executionGraph.value) {
+        executionGraph.value.locateAndCenterNode(nodeId);
       }
     };
 
@@ -270,7 +270,7 @@ export default {
       showDebug,
       debugTab,
       copySuccess,
-      dagVisualization,
+      executionGraph,
       profileText,
       hasResult,
       isLoading,
@@ -522,8 +522,8 @@ export default {
     border-radius: 10px;
   }
 
-  // DAGVisualization 组件占据剩余空间
-  :deep(.dag-visualization) {
+  // ExecutionGraph 组件占据剩余空间
+  :deep(.execution-graph) {
     flex: 1;
     display: flex;
     flex-direction: column;

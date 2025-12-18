@@ -3,7 +3,7 @@
 
 use crate::models::*;
 use crate::parser::error::{ParseError, ParseResult};
-use crate::parser::core::{SectionParser, FragmentParser, TreeBuilder};
+use crate::parser::engine::{SectionParser, FragmentParser, TreeBuilder};
 
 /// ProfileComposer is responsible for parsing Doris profile text
 /// and composing it into a structured Profile object.

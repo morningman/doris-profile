@@ -2,7 +2,7 @@
 //! Parses individual operators with their PlanInfo, CommonCounters, and CustomCounters
 
 use crate::models::Operator;
-use crate::parser::core::ValueParser;
+use crate::parser::engine::ValueParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
