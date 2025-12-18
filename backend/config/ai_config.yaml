@@ -1,12 +1,12 @@
 # AI 诊断配置
 ai_diagnosis:
-  enabled: false  # 是否启用 AI 诊断
+  enabled: true  # 是否启用 AI 诊断
   provider: openai  # AI 服务提供商
   
   # OpenAI 配置
   openai:
-    api_key: ""  # API Key（环境变量优先：OPENAI_API_KEY）
-    api_endpoint: "https://api.openai.com/v1/chat/completions"
+    api_key: "sk-zk2ceec2c1c51e9a7b2da22a91bf8ce61276676f53f33db3"  # API Key（环境变量优先：OPENAI_API_KEY）
+    api_endpoint: "https://api.zhizengzeng.com/v1/chat/completions"
     model: "gpt-4"  # 可选：gpt-4, gpt-3.5-turbo
     temperature: 0.7
     max_tokens: 1000

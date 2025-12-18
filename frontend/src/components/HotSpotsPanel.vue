@@ -28,8 +28,13 @@
         </div>
         <div class="hotspot-path">{{ hotspot.node_path }}</div>
         <div class="hotspot-description">{{ hotspot.description }}</div>
+        <div v-if="hotspot.suggestion_source && hotspot.suggestion_source !== 'ai'" class="suggestion-status-warning">
+          <i class="fas fa-exclamation-circle"></i>
+          {{ hotspot.suggestion_source }}
+        </div>
         <div v-if="hotspot.suggestion" class="hotspot-suggestion">
           <i class="fas fa-lightbulb"></i>
+          <span v-if="hotspot.suggestion_source === 'ai'" class="ai-badge">AI</span>
           {{ hotspot.suggestion }}
         </div>
       </div>
@@ -233,6 +238,20 @@ export default {
   margin-bottom: 8px;
 }
 
+.suggestion-status-warning {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-top: 8px;
+  background: rgba(230, 162, 60, 0.15);
+  color: #e6a23c;
+  border-left: 3px solid #e6a23c;
+  
+  i {
+    margin-right: 6px;
+  }
+}
+
 .hotspot-suggestion {
   font-size: 12px;
   padding: 8px 12px;
@@ -240,9 +259,24 @@ export default {
   margin-top: 8px;
   background: rgba(64, 158, 255, 0.1);
   color: var(--primary-color);
+  position: relative;
 
   i {
     margin-right: 8px;
+  }
+  
+  .ai-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
   }
 }
 

@@ -19,23 +19,42 @@ impl SuggestionEngine {
             if let Some(ref tree) = profile.execution_tree {
                 if let Some(node) = tree.nodes.iter().find(|n| n.id == hotspot.node_id) {
                     // Try to use AI to generate suggestion
-                    let suggestion = if let Some(ai) = ai_service {
+                    let (suggestion, source) = if let Some(ai) = ai_service {
                         if ai.is_enabled() {
                             match ai.generate_suggestion(node, profile).await {
-                                Ok(s) => s,
+                                Ok(s) => {
+                                    (s, "ai".to_string())
+                                }
                                 Err(e) => {
-                                    eprintln!("AI suggestion failed for node {}: {}, using default", node.id, e);
-                                    Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                                    let error_msg = format!("AI Suggestion failed: {}", e);
+                                    eprintln!("{} for node {}, using default", error_msg, node.id);
+                                    let default_suggestion = Self::get_default_suggestion(
+                                        &hotspot.operator_name, 
+                                        &hotspot.severity, 
+                                        default_config
+                                    );
+                                    (default_suggestion, error_msg)
                                 }
                             }
                         } else {
-                            Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                            let default_suggestion = Self::get_default_suggestion(
+                                &hotspot.operator_name, 
+                                &hotspot.severity, 
+                                default_config
+                            );
+                            (default_suggestion, "AI Suggestion is not enabled".to_string())
                         }
                     } else {
-                        Self::get_default_suggestion(&hotspot.operator_name, &hotspot.severity, default_config)
+                        let default_suggestion = Self::get_default_suggestion(
+                            &hotspot.operator_name, 
+                            &hotspot.severity, 
+                            default_config
+                        );
+                        (default_suggestion, "AI Suggestion is not enabled".to_string())
                     };
                     
                     hotspot.suggestion = Some(suggestion);
+                    hotspot.suggestion_source = Some(source);
                 }
             }
         }

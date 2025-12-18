@@ -54,6 +54,7 @@ impl HotSpotDetector {
             description,
             time_percentage: node.time_percentage,
             suggestion: None,  // Will be filled by SuggestionEngine
+            suggestion_source: None,  // Will be filled by SuggestionEngine
         })
     }
     

@@ -225,6 +225,9 @@ pub struct HotSpot {
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggestion: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion_source: Option<String>,  // "ai", "default", or error message
 }
 
 /// Optimization suggestion
