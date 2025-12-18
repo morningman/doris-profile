@@ -50,14 +50,7 @@
         </button>
       </div>
 
-      <!-- Summary Section -->
-      <AnalysisSummary
-        :summary="summary"
-        :score="performanceScore"
-        :conclusion="conclusion"
-      />
-
-      <!-- Debug JSON Panel -->
+      <!-- Debug JSON Panel (显示在 Summary 之前) -->
       <div v-if="showDebug" class="card debug-card">
         <div class="card-header">
           <h3><i class="fas fa-code"></i> Debug: Execution Tree JSON</h3>
@@ -109,6 +102,13 @@
           <pre class="json-content">{{ formattedDebugJson }}</pre>
         </div>
       </div>
+
+      <!-- Summary Section -->
+      <AnalysisSummary
+        :summary="summary"
+        :score="performanceScore"
+        :conclusion="conclusion"
+      />
 
       <!-- Main Content Grid -->
       <div class="result-grid">
