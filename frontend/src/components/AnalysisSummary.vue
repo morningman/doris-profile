@@ -95,6 +95,65 @@
         <pre v-else class="sql-code formatted"><code class="sql" v-html="highlightedSql"></code></pre>
       </div>
     </div>
+
+    <!-- Execution Summary -->
+    <div v-if="hasExecutionSummary" class="exec-summary-section">
+      <h4><i class="fas fa-chart-line"></i> Execution Summary</h4>
+      <div class="exec-summary-grid">
+        <div v-if="summary?.execution_summary['Workload Group']" class="exec-item">
+          <span class="exec-label">Workload Group</span>
+          <span class="exec-value">{{ summary.execution_summary['Workload Group'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Parse SQL Time']" class="exec-item">
+          <span class="exec-label">Parse SQL Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Parse SQL Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Plan Time']" class="exec-item">
+          <span class="exec-label">Plan Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Plan Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Schedule Time']" class="exec-item">
+          <span class="exec-label">Schedule Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Schedule Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Wait and Fetch Result Time']" class="exec-item">
+          <span class="exec-label">Wait and Fetch Result Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Wait and Fetch Result Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Fetch Result Time']" class="exec-item">
+          <span class="exec-label">Fetch Result Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Fetch Result Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Write Result Time']" class="exec-item">
+          <span class="exec-label">Write Result Time</span>
+          <span class="exec-value">{{ summary.execution_summary['Write Result Time'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Is Cached']" class="exec-item">
+          <span class="exec-label">Is Cached</span>
+          <span class="exec-value">{{ summary.execution_summary['Is Cached'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Total Instances Num']" class="exec-item">
+          <span class="exec-label">Total Instances Num</span>
+          <span class="exec-value">{{ summary.execution_summary['Total Instances Num'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Parallel Fragment Exec Instance Num']" class="exec-item">
+          <span class="exec-label">Parallel Fragment Exec Instance Num</span>
+          <span class="exec-value">{{ summary.execution_summary['Parallel Fragment Exec Instance Num'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Instances Num Per BE']" class="exec-item exec-item-wide">
+          <span class="exec-label">Instances Num Per BE</span>
+          <span class="exec-value exec-value-code">{{ summary.execution_summary['Instances Num Per BE'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Schedule Time Of BE']" class="exec-item exec-item-full">
+          <span class="exec-label">Schedule Time Of BE</span>
+          <span class="exec-value exec-value-code">{{ summary.execution_summary['Schedule Time Of BE'] }}</span>
+        </div>
+        <div v-if="summary?.execution_summary['Splits Assignment Weight']" class="exec-item exec-item-wide">
+          <span class="exec-label">Splits Assignment Weight</span>
+          <span class="exec-value exec-value-code">{{ summary.execution_summary['Splits Assignment Weight'] }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -227,6 +286,11 @@ export default {
     const toggleSqlFormat = () => {
       isFormatted.value = !isFormatted.value;
     };
+    
+    const hasExecutionSummary = computed(() => {
+      return props.summary?.execution_summary && 
+             Object.keys(props.summary.execution_summary).length > 0;
+    });
 
     return {
       scoreClass,
@@ -237,6 +301,7 @@ export default {
       highlightedSql,
       compactHighlightedSql,
       toggleSqlFormat,
+      hasExecutionSummary,
     };
   },
 };
@@ -488,6 +553,89 @@ export default {
     word-wrap: break-word;
     word-break: break-word;
     overflow-x: hidden;
+  }
+}
+
+.exec-summary-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+
+  h4 {
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+
+    i {
+      margin-right: 8px;
+    }
+  }
+}
+
+.exec-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.exec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+
+  &.exec-item-wide {
+    grid-column: span 2;
+    
+    @media (max-width: 1200px) {
+      grid-column: span 1;
+    }
+  }
+  
+  &.exec-item-full {
+    grid-column: span 3;
+    
+    @media (max-width: 1200px) {
+      grid-column: span 2;
+    }
+    
+    @media (max-width: 768px) {
+      grid-column: span 1;
+    }
+  }
+
+  .exec-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  .exec-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+    
+    &.exec-value-code {
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      color: #666;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   }
 }
 </style>

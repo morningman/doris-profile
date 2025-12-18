@@ -34,6 +34,9 @@ pub struct ProfileSummary {
     
     pub variables: HashMap<String, String>,
     
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
+    pub execution_summary: HashMap<String, String>,
+    
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_time_ms: Option<f64>,
     

@@ -67,7 +67,8 @@ impl SectionParser {
             i += 1;
         }
         
-        // Also parse Execution Summary if present
+        // Parse Execution Summary separately
+        let mut execution_summary = HashMap::new();
         if let Ok(exec_block) = Self::extract_section(text, "Execution Summary:") {
             let exec_lines: Vec<&str> = exec_block.lines().collect();
             let mut i = 0;
@@ -78,7 +79,7 @@ impl SectionParser {
                     let key = cap.get(1).map(|m| m.as_str().trim()).unwrap_or("");
                     let value = cap.get(2).map(|m| m.as_str().trim()).unwrap_or("");
                     if !key.is_empty() {
-                        fields.insert(key.to_string(), value.to_string());
+                        execution_summary.insert(key.to_string(), value.to_string());
                     }
                 }
                 i += 1;
@@ -101,6 +102,7 @@ impl SectionParser {
             default_db: fields.get("Default Db").cloned(),
             default_catalog: fields.get("Default Catalog").cloned(),
             variables: HashMap::new(),
+            execution_summary,
             total_time_ms,
             query_peak_memory: None,
         })
