@@ -107,11 +107,11 @@
                 :class="{ selected: selectedNodeId === node.id, hotspot: node.is_hotspot }"
                 @click.stop="selectNode(node)"
               >
-                <rect class="node-header" :class="`header-${getNodeColorClass(node)}`" :width="NODE_WIDTH" :height="NODE_HEADER_HEIGHT" rx="3" />
-                <rect class="node-body" :width="NODE_WIDTH" :y="NODE_HEADER_HEIGHT" :height="NODE_BODY_HEIGHT" />
-                <rect class="progress-bg" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="NODE_WIDTH" :height="NODE_PROGRESS_HEIGHT" />
-                <rect v-if="node.time_percentage" class="progress-fill" :y="NODE_HEADER_HEIGHT + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
-                <rect class="node-border" :width="NODE_WIDTH" :height="NODE_HEIGHT" rx="3" />
+                <rect class="node-header" :class="`header-${getNodeColorClass(node)}`" :width="NODE_WIDTH" :height="getNodeHeaderHeight(node)" rx="3" />
+                <rect class="node-body" :width="NODE_WIDTH" :y="getNodeHeaderHeight(node)" :height="NODE_BODY_HEIGHT" />
+                <rect class="progress-bg" :y="getNodeHeaderHeight(node) + NODE_BODY_HEIGHT" :width="NODE_WIDTH" :height="NODE_PROGRESS_HEIGHT" />
+                <rect v-if="node.time_percentage" class="progress-fill" :y="getNodeHeaderHeight(node) + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
+                <rect class="node-border" :width="NODE_WIDTH" :height="getNodeTotalHeight(node)" rx="3" />
                 
                 <!-- 节点标题（包含 ID 信息） -->
                 <text class="node-title" x="10" :y="19">
@@ -119,28 +119,33 @@
                   <tspan v-if="node.isMerged" class="merged-badge" dx="5" style="font-size: 11px; fill: #FFD700;">⚡</tspan>
                 </text>
                 
+                <!-- JOIN 类型信息 (仅 HASH_JOIN 节点，显示在标题栏内) -->
+                <text v-if="getJoinType(node)" class="node-join-type" x="10" :y="33" style="font-size: 9px; fill: rgba(255, 255, 255, 0.9); font-weight: 500;">
+                  {{ getJoinType(node) }}
+                </text>
+                
                 <!-- 节点详情 -->
                 <template v-if="node.isMerged">
                   <!-- 合并节点显示两个节点的简化信息 -->
-                  <text class="node-detail-small" x="10" :y="NODE_HEADER_HEIGHT + 12" style="font-size: 10px;">
+                  <text class="node-detail-small" x="10" :y="getNodeHeaderHeight(node) + 12" style="font-size: 10px;">
                     {{ node.primaryNode.operator_name }}
                   </text>
-                  <text class="node-detail-small" x="10" :y="NODE_HEADER_HEIGHT + 24" style="font-size: 10px;">
+                  <text class="node-detail-small" x="10" :y="getNodeHeaderHeight(node) + 24" style="font-size: 10px;">
                     + {{ node.secondaryNode.operator_name }}
                   </text>
-                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 40">
+                  <text class="node-detail" x="10" :y="getNodeHeaderHeight(node) + 40">
                     总耗时: {{ formatGraphTime(node) }}
                   </text>
-                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 40" text-anchor="end">
+                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="getNodeHeaderHeight(node) + 40" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
                   </text>
                 </template>
                 <template v-else>
                   <!-- 普通节点 -->
-                  <text class="node-detail" x="10" :y="NODE_HEADER_HEIGHT + 20">
+                  <text class="node-detail" x="10" :y="getNodeHeaderHeight(node) + 20">
                     耗时: {{ formatGraphTime(node) }}
                   </text>
-                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="NODE_HEADER_HEIGHT + 20" text-anchor="end">
+                  <text class="node-percentage" :x="NODE_WIDTH - 10" :y="getNodeHeaderHeight(node) + 20" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
                   </text>
                 </template>
@@ -961,6 +966,38 @@ export default {
       }
       
       return `${operatorName}(${planNodeId}-F${fragmentId}-P${pipelineId})`;
+    },
+    getJoinType(node) {
+      if (!node) return null;
+      
+      // 检查是否是 HASH_JOIN 节点
+      const isHashJoin = node.operator_name?.includes('HASH_JOIN') || 
+                        node.operator_name?.includes('HASH JOIN');
+      
+      if (!isHashJoin) return null;
+      
+      // 尝试从 plan_info 中获取 join op 信息
+      let joinOp = null;
+      
+      if (node.isMerged && node.primaryNode?.plan_info) {
+        // 如果是合并节点，从 primaryNode 获取
+        const joinOpItem = node.primaryNode.plan_info.find(item => item.key === 'join op');
+        joinOp = joinOpItem?.value;
+      } else if (node.plan_info) {
+        // 普通节点
+        const joinOpItem = node.plan_info.find(item => item.key === 'join op');
+        joinOp = joinOpItem?.value;
+      }
+      
+      return joinOp || null;
+    },
+    getNodeHeaderHeight(node) {
+      // 如果有 JOIN 类型信息，标题栏高度增加
+      return this.getJoinType(node) ? 42 : this.NODE_HEADER_HEIGHT;
+    },
+    getNodeTotalHeight(node) {
+      // 总高度 = 标题高度 + body 高度 + progress 高度
+      return this.getNodeHeaderHeight(node) + this.NODE_BODY_HEIGHT + this.NODE_PROGRESS_HEIGHT;
     },
     formatGraphTime(node) {
       if (!node?.metrics) return 'N/A';
