@@ -105,7 +105,11 @@
                 :transform="`translate(${node.x}, ${node.y})`"
                 :data-node-id="node.id"
                 class="node-group"
-                :class="{ selected: selectedNodeId === node.id, hotspot: node.is_hotspot }"
+                :class="{ 
+                  selected: selectedNodeId === node.id, 
+                  hotspot: node.is_hotspot,
+                  'top-time-consuming': isTopThreeNode(node.id)
+                }"
                 @click.stop="selectNode(node)"
               >
                 <rect class="node-header" :class="`header-${getNodeColorClass(node)}`" :width="NODE_WIDTH" :height="getNodeHeaderHeight(node)" rx="3" />
@@ -460,6 +464,7 @@ export default {
       selectedNode: null,
       maxTime: 0,
       needsAutoFit: true, // 标记是否需要自动适应
+      topThreeNodeIds: [], // 存储最耗时的三个节点 ID
     };
   },
   computed: {
@@ -683,6 +688,13 @@ export default {
       });
 
       this.maxTime = Math.max(...visibleNodes.map(n => this.getNodeTime(n)), 1);
+      
+      // 计算最耗时的三个节点（基于 time_percentage）
+      const sortedByTime = [...visibleNodes]
+        .filter(n => n.time_percentage && n.time_percentage > 0)
+        .sort((a, b) => (b.time_percentage || 0) - (a.time_percentage || 0));
+      
+      this.topThreeNodeIds = sortedByTime.slice(0, 3).map(n => n.id);
 
       // 更新 SVG 尺寸以适应容器
       this.updateSvgSize();
@@ -1282,6 +1294,10 @@ export default {
           }, 1000);
         }
       });
+    },
+    // 判断节点是否是最耗时的三个节点之一
+    isTopThreeNode(nodeId) {
+      return this.topThreeNodeIds.includes(nodeId);
     }
   }
 };
@@ -1419,6 +1435,24 @@ export default {
   &:hover .node-border { stroke: #2196F3; stroke-width: 2; }
   &.selected .node-border { stroke: #1976D2; stroke-width: 2; }
   &.hotspot .node-border { stroke: #E57373; stroke-width: 2; }
+  
+  /* 最耗时的三个节点：红色标题 + 红色边框 */
+  &.top-time-consuming .node-header {
+    fill: #F5222D !important;  /* 红色标题背景，覆盖所有类型的颜色 */
+  }
+  
+  &.top-time-consuming .node-border {
+    stroke: #F5222D;
+    stroke-width: 3;
+    stroke-dasharray: none;
+    filter: drop-shadow(0 0 4px rgba(245, 34, 45, 0.5));
+  }
+  
+  /* 如果同时是 hotspot 和 top-time-consuming，优先使用 top-time-consuming 样式 */
+  &.top-time-consuming.hotspot .node-border {
+    stroke: #F5222D;
+    stroke-width: 3;
+  }
   
   &.node-highlight {
     animation: highlight-pulse 1s ease-out;
