@@ -492,20 +492,25 @@ impl TreeBuilder {
     }
     
     /// Calculate time percentages and identify hotspots
-    fn calculate_metrics(nodes: &mut [ExecutionTreeNode], _summary: &ProfileSummary) {
-        // Calculate total execution time from all operators
-        let total_time: u64 = nodes.iter()
-            .filter_map(|n| n.metrics.operator_total_time)
-            .sum();
+    fn calculate_metrics(nodes: &mut [ExecutionTreeNode], summary: &ProfileSummary) {
+        // Use query total time as denominator (converted from ms to ns)
+        let total_time_ns: u64 = summary.total_time_ms
+            .map(|ms| (ms * 1_000_000.0) as u64)
+            .unwrap_or_else(|| {
+                // Fallback: sum of all operator times
+                nodes.iter()
+                    .filter_map(|n| n.metrics.operator_total_time)
+                    .sum()
+            });
         
-        if total_time == 0 {
+        if total_time_ns == 0 {
             return;
         }
         
         // Calculate percentage for each node
         for node in nodes.iter_mut() {
             if let Some(op_time) = node.metrics.operator_total_time {
-                let percentage = (op_time as f64 / total_time as f64) * 100.0;
+                let percentage = (op_time as f64 / total_time_ns as f64) * 100.0;
                 node.time_percentage = Some(percentage);
                 
                 // Determine hotspot severity
