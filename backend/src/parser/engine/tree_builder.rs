@@ -98,6 +98,18 @@ impl TreeBuilder {
         if let Some(did) = parsed.dest_id {
             unique_metrics.insert("dest_id".to_string(), did.to_string());
         }
+        // Store dest_ids for MULTI_CAST_SINK
+        if !parsed.dest_ids.is_empty() {
+            let dest_ids_str = parsed.dest_ids.iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            unique_metrics.insert("dest_ids".to_string(), dest_ids_str);
+        }
+        // Store source_id for MULTI_CAST_SOURCE
+        if let Some(sid) = parsed.source_id {
+            unique_metrics.insert("source_id".to_string(), sid.to_string());
+        }
         
         // Generate a unique node ID
         let node_id = if let Some(did) = parsed.dest_id {
@@ -221,6 +233,9 @@ impl TreeBuilder {
                     format!("{}_SINK", node.operator_name)
                 };
                 
+                // Check if this is a UNION operator (can have multiple SINKs)
+                let is_union = node.operator_name.contains("UNION_OPERATOR");
+                
                 if let Some(fid) = &node.fragment_id {
                     // Find SINK with matching name AND plan_node_id in a different pipeline
                     for (other_idx, other_node) in nodes.iter().enumerate() {
@@ -231,25 +246,32 @@ impl TreeBuilder {
                             && other_node.plan_node_id == node.plan_node_id {  // 关键修复：检查 plan_node_id 匹配
                             // Record connection: non-SINK -> SINK
                             sink_connections.push((idx, other_node.id.clone()));
-                            break; // Only connect to one SINK
+                            // For UNION, continue to find all matching SINKs
+                            // For others (like AGGREGATION, SORT), only connect to one
+                            if !is_union {
+                                break;
+                            }
                         }
                     }
                 }
                 
                 // Also try nereids_id matching for cases where name doesn't match exactly
-                if let Some(nereids_str) = node.unique_metrics.get("nereids_id") {
-                    if let Ok(nereids_id) = nereids_str.parse::<i32>() {
-                        if let Some(fid) = &node.fragment_id {
-                            if let Some(matching_nodes) = operators_by_nereids.get(&(fid.clone(), nereids_id)) {
-                                for &match_idx in matching_nodes {
-                                    if match_idx != idx 
-                                        && nodes[match_idx].operator_name.contains("SINK")
-                                        && !nodes[match_idx].operator_name.contains("DATA_STREAM_SINK")
-                                        && !nodes[match_idx].operator_name.contains("RESULT_SINK")
-                                        && nodes[match_idx].pipeline_id != node.pipeline_id {
-                                        // Record connection
-                                        sink_connections.push((idx, nodes[match_idx].id.clone()));
-                                        break;
+                // (Skip for UNION since we already handled it above with plan_node_id)
+                if !is_union {
+                    if let Some(nereids_str) = node.unique_metrics.get("nereids_id") {
+                        if let Ok(nereids_id) = nereids_str.parse::<i32>() {
+                            if let Some(fid) = &node.fragment_id {
+                                if let Some(matching_nodes) = operators_by_nereids.get(&(fid.clone(), nereids_id)) {
+                                    for &match_idx in matching_nodes {
+                                        if match_idx != idx 
+                                            && nodes[match_idx].operator_name.contains("SINK")
+                                            && !nodes[match_idx].operator_name.contains("DATA_STREAM_SINK")
+                                            && !nodes[match_idx].operator_name.contains("RESULT_SINK")
+                                            && nodes[match_idx].pipeline_id != node.pipeline_id {
+                                            // Record connection
+                                            sink_connections.push((idx, nodes[match_idx].id.clone()));
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -293,11 +315,67 @@ impl TreeBuilder {
             }
         }
         
+        // 5. Connect MULTI_CAST_DATA_STREAM_SINK to MULTI_CAST_DATA_STREAM_SOURCE operators
+        // Build lookup maps for multi-cast operators
+        let mut multi_cast_sinks: HashMap<String, (usize, Vec<i32>)> = HashMap::new(); // fragment -> (node_idx, dest_ids)
+        let mut multi_cast_sources: HashMap<(String, i32), usize> = HashMap::new(); // (fragment, source_id) -> node_idx
+        
+        // Track multi-cast sinks and sources
+        for (idx, node) in nodes.iter().enumerate() {
+            if node.operator_name.contains("MULTI_CAST_DATA_STREAM_SINK") {
+                if let Some(fid) = &node.fragment_id {
+                    // Extract all dest_ids from unique_metrics
+                    let dest_ids = Self::extract_dest_ids_from_metrics(&node.unique_metrics);
+                    if !dest_ids.is_empty() {
+                        multi_cast_sinks.insert(fid.clone(), (idx, dest_ids));
+                    }
+                }
+            }
+            if node.operator_name.contains("MULTI_CAST_DATA_STREAM_SOURCE") {
+                if let Some(fid) = &node.fragment_id {
+                    if let Some(source_str) = node.unique_metrics.get("source_id") {
+                        if let Ok(source_id) = source_str.parse::<i32>() {
+                            multi_cast_sources.insert((fid.clone(), source_id), idx);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Connect MULTI_CAST_SINK -> MULTI_CAST_SOURCE (multiple connections)
+        // Note: In the tree, consumers are parents and producers are children
+        // MULTI_CAST_SOURCE consumes from MULTI_CAST_SINK
+        // So: MULTI_CAST_SOURCE (parent) -> MULTI_CAST_SINK (child)
+        for (frag, (sink_idx, dest_ids)) in &multi_cast_sinks {
+            for dest_id in dest_ids {
+                if let Some(&source_idx) = multi_cast_sources.get(&(frag.clone(), *dest_id)) {
+                    // SOURCE consumes from SINK, so SOURCE is the parent
+                    let sink_id = nodes[*sink_idx].id.clone();
+                    if !nodes[source_idx].children.contains(&sink_id) {
+                        nodes[source_idx].children.push(sink_id);
+                    }
+                }
+            }
+        }
+        
         // Update depths based on the tree structure
         Self::update_depths(nodes, node_map);
         
         // DEBUG: Check for nodes with multiple parents
         Self::check_multiple_parents(nodes);
+    }
+    
+    /// Extract dest_ids from node metrics
+    fn extract_dest_ids_from_metrics(metrics: &HashMap<String, String>) -> Vec<i32> {
+        if let Some(dest_ids_str) = metrics.get("dest_ids") {
+            dest_ids_str.split(',')
+                .filter_map(|s| s.trim().parse::<i32>().ok())
+                .collect()
+        } else if let Some(dest_id_str) = metrics.get("dest_id") {
+            vec![dest_id_str.parse::<i32>().unwrap_or(0)]
+        } else {
+            vec![]
+        }
     }
     
     /// Check and report nodes with multiple parents
@@ -348,11 +426,13 @@ impl TreeBuilder {
             .position(|n| n.operator_name.contains("RESULT_SINK"))
             .unwrap_or(0);
         
-        // BFS to update depths
-        let mut queue = vec![(root_idx, 0usize)];
+        // BFS to update depths (use VecDeque for proper FIFO queue)
+        use std::collections::VecDeque;
+        let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
+        queue.push_back((root_idx, 0));
         let mut visited = std::collections::HashSet::new();
         
-        while let Some((idx, depth)) = queue.pop() {
+        while let Some((idx, depth)) = queue.pop_front() { // Changed from pop() to pop_front()
             if visited.contains(&idx) {
                 continue;
             }
@@ -362,7 +442,7 @@ impl TreeBuilder {
             for child_id in nodes[idx].children.clone() {
                 if let Some(&child_idx) = id_to_idx.get(&child_id) {
                     if !visited.contains(&child_idx) {
-                        queue.push((child_idx, depth + 1));
+                        queue.push_back((child_idx, depth + 1));
                     }
                 }
             }
@@ -464,6 +544,14 @@ impl TreeBuilder {
     /// Determine node type from operator name
     fn determine_node_type(name: &str) -> NodeType {
         let upper = name.to_uppercase();
+        
+        // Check for MULTI_CAST operators first (before generic checks)
+        if upper.contains("MULTI_CAST_DATA_STREAM_SINK") {
+            return NodeType::MultiCastSink;
+        }
+        if upper.contains("MULTI_CAST_DATA_STREAM_SOURCE") {
+            return NodeType::MultiCastSource;
+        }
         
         if upper.contains("SCAN") {
             if upper.contains("OLAP") {

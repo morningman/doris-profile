@@ -34,6 +34,18 @@ static LOCAL_EXCHANGE_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"LOCAL_EXCHANGE_(?:SINK_)?OPERATOR\(([A-Z_]+)\)\(id=(-?\d+)\)").unwrap()
 });
 
+/// Regex for MULTI_CAST_DATA_STREAM_SINK with multiple dest_ids
+/// Example: MULTI_CAST_DATA_STREAM_SINK_OPERATOR(dest_id=-2, dest_id=-3)(id=-1):
+static MULTI_CAST_SINK_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"MULTI_CAST_DATA_STREAM_SINK_OPERATOR\((.+?)\)\(id=(-?\d+)\)").unwrap()
+});
+
+/// Regex for MULTI_CAST_DATA_STREAM_SOURCE with source_id
+/// Example: MULTI_CAST_DATA_STREAM_SOURCE_OPERATOR(id=-2):
+static MULTI_CAST_SOURCE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"MULTI_CAST_DATA_STREAM_SOURCE_OPERATOR\(id=(-?\d+)\)").unwrap()
+});
+
 /// Regex for metric lines: "- MetricName: value"
 static METRIC_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^\s*-\s+([^:]+):\s*(.*)$").unwrap()
@@ -47,7 +59,9 @@ pub struct ParsedOperator {
     pub name: String,
     pub id: i32,
     pub nereids_id: Option<i32>,
-    pub dest_id: Option<i32>,  // For DATA_STREAM_SINK
+    pub dest_id: Option<i32>,  // For DATA_STREAM_SINK (backward compatibility)
+    pub dest_ids: Vec<i32>,    // For MULTI_CAST_DATA_STREAM_SINK (multiple destinations)
+    pub source_id: Option<i32>, // For MULTI_CAST_DATA_STREAM_SOURCE
     pub exchange_type: Option<String>,  // For LOCAL_EXCHANGE
     pub plan_info: Vec<MetricItem>,
     pub common_counters: Vec<MetricItem>,
@@ -72,6 +86,8 @@ impl OperatorParser {
             || OPERATOR_HEADER_ALT_REGEX.is_match(trimmed)
             || DATA_STREAM_SINK_REGEX.is_match(trimmed)
             || LOCAL_EXCHANGE_REGEX.is_match(trimmed)
+            || MULTI_CAST_SINK_REGEX.is_match(trimmed)
+            || MULTI_CAST_SOURCE_REGEX.is_match(trimmed)
     }
     
     /// Extract all operators from pipeline text
@@ -149,8 +165,8 @@ impl OperatorParser {
         
         let header = lines[0].trim();
         
-        // Parse header to extract name, id, nereids_id
-        let (name, id, nereids_id, dest_id, exchange_type, table_name) = Self::parse_header(header)?;
+        // Parse header to extract all operator metadata
+        let (name, id, nereids_id, dest_id, dest_ids, source_id, exchange_type, table_name) = Self::parse_header(header)?;
         
         let mut plan_info = Vec::new();
         let mut common_counters = Vec::new();
@@ -246,6 +262,8 @@ impl OperatorParser {
             id,
             nereids_id,
             dest_id,
+            dest_ids,
+            source_id,
             exchange_type,
             plan_info,
             common_counters,
@@ -260,8 +278,57 @@ impl OperatorParser {
     }
     
     /// Parse operator header line
-    fn parse_header(header: &str) -> Option<(String, i32, Option<i32>, Option<i32>, Option<String>, Option<String>)> {
+    /// Returns: (name, id, nereids_id, dest_id, dest_ids, source_id, exchange_type, table_name)
+    fn parse_header(header: &str) -> Option<(String, i32, Option<i32>, Option<i32>, Vec<i32>, Option<i32>, Option<String>, Option<String>)> {
         let trimmed = header.trim().trim_end_matches(':');
+        
+        // Check for MULTI_CAST_DATA_STREAM_SINK with multiple dest_ids
+        // Example: MULTI_CAST_DATA_STREAM_SINK_OPERATOR(dest_id=-2, dest_id=-3)(id=-1):
+        if let Some(caps) = MULTI_CAST_SINK_REGEX.captures(trimmed) {
+            let dest_ids_str = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let id: i32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            
+            // Extract all dest_ids from the comma-separated list
+            let dest_ids: Vec<i32> = dest_ids_str
+                .split(',')
+                .filter_map(|s| {
+                    // Extract the number after "dest_id="
+                    s.trim()
+                        .strip_prefix("dest_id=")
+                        .and_then(|num_str| num_str.parse::<i32>().ok())
+                })
+                .collect();
+            
+            // For backward compatibility, set dest_id to the first one
+            let dest_id = dest_ids.first().copied();
+            
+            return Some((
+                "MULTI_CAST_DATA_STREAM_SINK_OPERATOR".to_string(),
+                id,
+                None,
+                dest_id,
+                dest_ids,
+                None,
+                None,
+                None,
+            ));
+        }
+        
+        // Check for MULTI_CAST_DATA_STREAM_SOURCE with source_id
+        // Example: MULTI_CAST_DATA_STREAM_SOURCE_OPERATOR(id=-2):
+        if let Some(caps) = MULTI_CAST_SOURCE_REGEX.captures(trimmed) {
+            let source_id: i32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            return Some((
+                "MULTI_CAST_DATA_STREAM_SOURCE_OPERATOR".to_string(),
+                source_id, // Use source_id as the node id
+                None,
+                None,
+                vec![],
+                Some(source_id), // Store source_id separately
+                None,
+                None,
+            ));
+        }
         
         // Check for DATA_STREAM_SINK with dest_id
         if let Some(caps) = DATA_STREAM_SINK_REGEX.captures(trimmed) {
@@ -271,6 +338,8 @@ impl OperatorParser {
                 -1, // No explicit id
                 None,
                 Some(dest_id),
+                vec![],
+                None,
                 None,
                 None,
             ));
@@ -285,7 +354,7 @@ impl OperatorParser {
             } else {
                 "LOCAL_EXCHANGE_OPERATOR"
             };
-            return Some((name.to_string(), id, None, None, exchange_type, None));
+            return Some((name.to_string(), id, None, None, vec![], None, exchange_type, None));
         }
         
         // Try alternate format first: OPERATOR (id=X. nereids_id=Y. ...)
@@ -298,7 +367,7 @@ impl OperatorParser {
             // Extract table name if present
             let table_name = Self::extract_table_name(trimmed);
             
-            return Some((name, id, nereids_id, None, None, table_name));
+            return Some((name, id, nereids_id, None, vec![], None, None, table_name));
         }
         
         // Try standard format: OPERATOR(nereids_id=X)(id=Y)
@@ -310,7 +379,7 @@ impl OperatorParser {
             // Extract table name if present
             let table_name = Self::extract_table_name(trimmed);
             
-            return Some((name, id, nereids_id, None, None, table_name));
+            return Some((name, id, nereids_id, None, vec![], None, None, table_name));
         }
         
         None
@@ -358,6 +427,18 @@ impl OperatorParser {
         }
         if let Some(did) = parsed.dest_id {
             metrics.insert("dest_id".to_string(), did.to_string());
+        }
+        // Store dest_ids as a comma-separated string for MULTI_CAST_SINK
+        if !parsed.dest_ids.is_empty() {
+            let dest_ids_str = parsed.dest_ids.iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            metrics.insert("dest_ids".to_string(), dest_ids_str);
+        }
+        // Store source_id for MULTI_CAST_SOURCE
+        if let Some(sid) = parsed.source_id {
+            metrics.insert("source_id".to_string(), sid.to_string());
         }
         if let Some(ref et) = parsed.exchange_type {
             metrics.insert("exchange_type".to_string(), et.clone());

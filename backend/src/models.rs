@@ -164,6 +164,8 @@ pub enum NodeType {
     Union,
     ResultSink,
     DataStreamSink,
+    MultiCastSink,
+    MultiCastSource,
     Unknown,
 }
 
