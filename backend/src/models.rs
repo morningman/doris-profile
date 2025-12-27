@@ -166,6 +166,10 @@ pub enum NodeType {
     DataStreamSink,
     MultiCastSink,
     MultiCastSource,
+    SetSink,
+    SetProbeSink,
+    Intersect,
+    Except,
     Unknown,
 }
 

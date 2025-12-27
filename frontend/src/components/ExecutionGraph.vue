@@ -1054,6 +1054,7 @@ export default {
       if (!node) return 'default';
       const name = node.operator_name || '';
       if (name.includes('MULTI_CAST')) return 'multicast';  // Check multi-cast first
+      if (name.includes('SET_SINK') || name.includes('SET_PROBE') || name.includes('INTERSECT') || name.includes('EXCEPT')) return 'set-op';
       if (name.includes('SCAN')) return 'scan';
       if (name.includes('JOIN')) return 'join';
       if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return 'aggregate';
@@ -1215,6 +1216,7 @@ export default {
       if (node.is_hotspot) return '#F5222D';  // Doris 红色 - 热点
       const name = node.operator_name || '';
       if (name.includes('MULTI_CAST')) return '#FA8C16';   // Doris 橙色 - 广播操作
+      if (name.includes('SET_SINK') || name.includes('SET_PROBE') || name.includes('INTERSECT') || name.includes('EXCEPT')) return '#9254DE'; // Doris 紫色 - SET操作
       if (name.includes('SCAN')) return '#52C41A';      // Doris 绿色 - 数据源
       if (name.includes('JOIN')) return '#2F54EB';      // Doris 蓝色 - 核心操作
       if (name.includes('AGGREGATE') || name.includes('AGGREGATION')) return '#722ED1'; // Doris 紫色 - 聚合
@@ -1479,6 +1481,7 @@ export default {
   &.header-sort { fill: #13C2C2; }      // Doris 青色 - 排序
   &.header-project { fill: #8C8C8C; }   // 灰色 - 投影
   &.header-multicast { fill: #FA8C16; } // Doris 橙色 - 广播操作
+  &.header-set-op { fill: #9254DE; }    // Doris 紫色 - SET操作
 }
 
 .node-body { fill: white; }

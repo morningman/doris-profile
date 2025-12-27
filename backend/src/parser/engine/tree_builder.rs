@@ -358,6 +358,48 @@ impl TreeBuilder {
             }
         }
         
+        // 6. Connect SET operators (INTERSECT, EXCEPT, UNION SET operations)
+        // In the same fragment with the same plan_node_id:
+        // - Multiple SET_PROBE_SINK_OPERATORs connect to one SET_SINK_OPERATOR
+        // - SET_SINK_OPERATOR connects to INTERSECT_OPERATOR (or EXCEPT_OPERATOR)
+        // Relationship: SET_OP -> SET_SINK -> SET_PROBE_SINK
+        let mut set_operators: HashMap<(String, i32), usize> = HashMap::new(); // (fragment, plan_node_id) -> node_idx
+        let mut set_sink_operators: HashMap<(String, i32), usize> = HashMap::new();
+        let mut set_probe_sink_operators: Vec<(String, i32, usize)> = vec![]; // (fragment, plan_node_id, node_idx)
+        
+        for (idx, node) in nodes.iter().enumerate() {
+            if let (Some(fid), Some(plan_id)) = (&node.fragment_id, node.plan_node_id) {
+                if node.operator_name.contains("INTERSECT_OPERATOR") 
+                    || node.operator_name.contains("EXCEPT_OPERATOR") {
+                    set_operators.insert((fid.clone(), plan_id), idx);
+                } else if node.operator_name == "SET_SINK_OPERATOR" {
+                    set_sink_operators.insert((fid.clone(), plan_id), idx);
+                } else if node.operator_name == "SET_PROBE_SINK_OPERATOR" {
+                    set_probe_sink_operators.push((fid.clone(), plan_id, idx));
+                }
+            }
+        }
+        
+        // Connect INTERSECT/EXCEPT -> SET_SINK (same fragment, same plan_node_id)
+        for ((frag, plan_id), set_op_idx) in &set_operators {
+            if let Some(&set_sink_idx) = set_sink_operators.get(&(frag.clone(), *plan_id)) {
+                let sink_id = nodes[set_sink_idx].id.clone();
+                if !nodes[*set_op_idx].children.contains(&sink_id) {
+                    nodes[*set_op_idx].children.push(sink_id);
+                }
+            }
+        }
+        
+        // Connect SET_SINK -> SET_PROBE_SINK (same fragment, same plan_node_id)
+        for (frag, plan_id, probe_sink_idx) in &set_probe_sink_operators {
+            if let Some(&set_sink_idx) = set_sink_operators.get(&(frag.clone(), *plan_id)) {
+                let probe_sink_id = nodes[*probe_sink_idx].id.clone();
+                if !nodes[set_sink_idx].children.contains(&probe_sink_id) {
+                    nodes[set_sink_idx].children.push(probe_sink_id);
+                }
+            }
+        }
+        
         // Update depths based on the tree structure
         Self::update_depths(nodes, node_map);
         
@@ -551,6 +593,20 @@ impl TreeBuilder {
         }
         if upper.contains("MULTI_CAST_DATA_STREAM_SOURCE") {
             return NodeType::MultiCastSource;
+        }
+        
+        // Check for SET operators
+        if upper.contains("SET_SINK_OPERATOR") {
+            return NodeType::SetSink;
+        }
+        if upper.contains("SET_PROBE_SINK_OPERATOR") {
+            return NodeType::SetProbeSink;
+        }
+        if upper.contains("INTERSECT_OPERATOR") {
+            return NodeType::Intersect;
+        }
+        if upper.contains("EXCEPT_OPERATOR") {
+            return NodeType::Except;
         }
         
         if upper.contains("SCAN") {
