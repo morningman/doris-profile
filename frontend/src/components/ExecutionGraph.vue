@@ -4,41 +4,41 @@
     <div class="view-controls">
       <!-- 第一排：视图切换和统计 -->
       <div class="controls-row-top">
-        <div class="view-tabs">
-          <button 
-            :class="['view-btn', { active: viewMode === 'graph' }]"
-            @click="viewMode = 'graph'"
-          >
-            📊 Graph View
-          </button>
-          <button 
-            :class="['view-btn', { active: viewMode === 'table' }]"
-            @click="viewMode = 'table'"
-          >
-            📋 Table
-          </button>
-          <button 
-            :class="['view-btn', { active: viewMode === 'pipeline' }]"
-            @click="viewMode = 'pipeline'"
-          >
-            📦 Pipeline View
-          </button>
-          <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
-        </div>
-        
-        <!-- 工具栏按钮 -->
-        <div v-if="viewMode === 'graph'" class="view-toolbar">
-          <button @click="zoomIn" class="toolbar-btn" title="放大">
-            <i class="fas fa-search-plus"></i>
-          </button>
-          <button @click="zoomOut" class="toolbar-btn" title="缩小">
-            <i class="fas fa-search-minus"></i>
-          </button>
-          <button @click="fitToScreen" class="toolbar-btn" title="适应屏幕">
-            <i class="fas fa-expand"></i>
-          </button>
-          <button @click="resetView" class="toolbar-btn" title="重置视图">
-            <i class="fas fa-redo"></i>
+      <div class="view-tabs">
+        <button 
+          :class="['view-btn', { active: viewMode === 'graph' }]"
+          @click="viewMode = 'graph'"
+        >
+          📊 Graph View
+        </button>
+        <button 
+          :class="['view-btn', { active: viewMode === 'table' }]"
+          @click="viewMode = 'table'"
+        >
+          📋 Table
+        </button>
+        <button 
+          :class="['view-btn', { active: viewMode === 'pipeline' }]"
+          @click="viewMode = 'pipeline'"
+        >
+          📦 Pipeline View
+        </button>
+        <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
+      </div>
+      
+      <!-- 工具栏按钮 -->
+      <div v-if="viewMode === 'graph'" class="view-toolbar">
+        <button @click="zoomIn" class="toolbar-btn" title="放大">
+          <i class="fas fa-search-plus"></i>
+        </button>
+        <button @click="zoomOut" class="toolbar-btn" title="缩小">
+          <i class="fas fa-search-minus"></i>
+        </button>
+        <button @click="fitToScreen" class="toolbar-btn" title="适应屏幕">
+          <i class="fas fa-expand"></i>
+        </button>
+        <button @click="resetView" class="toolbar-btn" title="重置视图">
+          <i class="fas fa-redo"></i>
           </button>
         </div>
       </div>
@@ -75,6 +75,69 @@
           title="下一个匹配"
         >
           <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+      
+      <!-- 第三排：Pipeline 过滤器 -->
+      <div v-if="viewMode === 'graph'" class="controls-row-filter">
+        <label>Fragment:</label>
+        <el-select 
+          v-model="selectedFragmentId" 
+          @change="onFragmentChange"
+          placeholder="Select Fragment"
+          clearable
+          size="small"
+          style="width: 150px"
+        >
+          <el-option 
+            v-for="fragId in fragmentIds" 
+            :key="fragId" 
+            :label="fragId" 
+            :value="fragId"
+          />
+        </el-select>
+        
+        <label>Pipelines:</label>
+        <el-select 
+          v-model="selectedPipelineIds" 
+          @change="onPipelineSelectionChange"
+          placeholder="Select Pipelines"
+          multiple
+          collapse-tags
+          size="small"
+          style="width: 250px"
+          :disabled="!selectedFragmentId"
+        >
+          <el-option 
+            v-for="pipeId in availablePipelines" 
+            :key="pipeId" 
+            :label="pipeId" 
+            :value="pipeId"
+          >
+            <span 
+              class="pipeline-color-dot" 
+              :style="{ background: pipelineColorMap[pipeId] || '#ccc' }"
+            ></span>
+            {{ pipeId }}
+          </el-option>
+        </el-select>
+        
+        <button 
+          v-if="selectedFragmentId"
+          @click="selectAllPipelines" 
+          class="toolbar-btn"
+          title="Select All Pipelines"
+        >
+          Select All
+        </button>
+        
+        <button 
+          v-if="hasActivePipelineFilter"
+          @click="clearPipelineFilter" 
+          class="toolbar-btn"
+          title="Clear Filter"
+        >
+          <i class="fas fa-times"></i> Clear
         </button>
       </div>
     </div>
@@ -146,11 +209,20 @@
                 :class="{ 
                   selected: selectedNodeId === node.id, 
                   hotspot: node.is_hotspot,
-                  'top-time-consuming': isTopThreeNode(node.id)
+                  'top-time-consuming': isTopThreeNode(node.id),
+                  'pipeline-highlight': hasActivePipelineFilter && node.pipeline_id && node.fragment_id === selectedFragmentId && selectedPipelineIds.includes(node.pipeline_id),
+                  'pipeline-dimmed': hasActivePipelineFilter && (!node.pipeline_id || node.fragment_id !== selectedFragmentId || !selectedPipelineIds.includes(node.pipeline_id))
                 }"
                 @click.stop="selectNode(node)"
               >
-                <rect class="node-header" :class="`header-${getNodeColorClass(node)}`" :width="NODE_WIDTH" :height="getNodeHeaderHeight(node)" rx="3" />
+                <rect 
+                  class="node-header" 
+                  :class="hasActivePipelineFilter ? '' : `header-${getNodeColorClass(node)}`" 
+                  :fill="hasActivePipelineFilter ? getNodeColor(node) : ''"
+                  :width="NODE_WIDTH" 
+                  :height="getNodeHeaderHeight(node)" 
+                  rx="3" 
+                />
                 <rect class="node-body" :width="NODE_WIDTH" :y="getNodeHeaderHeight(node)" :height="NODE_BODY_HEIGHT" />
                 <rect class="progress-bg" :y="getNodeHeaderHeight(node) + NODE_BODY_HEIGHT" :width="NODE_WIDTH" :height="NODE_PROGRESS_HEIGHT" />
                 <rect v-if="node.time_percentage" class="progress-fill" :y="getNodeHeaderHeight(node) + NODE_BODY_HEIGHT" :width="getProgressWidth(node)" :height="NODE_PROGRESS_HEIGHT" :fill="getProgressColor(node)" />
@@ -512,6 +584,11 @@ export default {
       searchText: '',
       searchResults: [],
       currentSearchIndex: -1,
+      
+      // Pipeline 过滤器状态
+      selectedFragmentId: null,        // 当前选中的 Fragment ID
+      selectedPipelineIds: [],         // 当前选中的多个 Pipeline IDs
+      pipelineColorMap: {},            // Pipeline ID -> 颜色的映射
     };
   },
   computed: {
@@ -550,6 +627,21 @@ export default {
         }
       });
       return map;
+    },
+    // 获取选中 fragment 下的 pipeline 列表（排序）
+    availablePipelines() {
+      if (!this.selectedFragmentId) return [];
+      const nodes = this.nodesByFragment[this.selectedFragmentId] || [];
+      const pipelineIds = new Set(nodes.map(n => n.pipeline_id).filter(Boolean));
+      return Array.from(pipelineIds).sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, ''));
+        const numB = parseInt(b.replace(/\D/g, ''));
+        return numA - numB;
+      });
+    },
+    // 检查是否有 pipeline 过滤器激活
+    hasActivePipelineFilter() {
+      return this.selectedPipelineIds.length > 0;
     },
   },
   watch: {
@@ -1099,6 +1191,21 @@ export default {
     },
     getNodeColorClass(node) {
       if (!node) return 'default';
+      
+      // 当有 pipeline 过滤器时，返回特殊 class
+      if (this.hasActivePipelineFilter) {
+        const nodePipelineId = node.pipeline_id;
+        const nodeFragmentId = node.fragment_id;
+        // 同时检查 fragment_id 和 pipeline_id
+        if (nodePipelineId && 
+            nodeFragmentId === this.selectedFragmentId && 
+            this.selectedPipelineIds.includes(nodePipelineId)) {
+          return 'pipeline-highlight';
+        }
+        return 'pipeline-dimmed';
+      }
+      
+      // 原有逻辑
       const name = node.operator_name || '';
       if (name.includes('MULTI_CAST')) return 'multicast';  // Check multi-cast first
       if (name.includes('SET_SINK') || name.includes('SET_PROBE') || name.includes('INTERSECT') || name.includes('EXCEPT')) return 'set-op';
@@ -1282,6 +1389,104 @@ export default {
       }
     },
     
+    // Pipeline 过滤器方法
+    assignPipelineColors() {
+      // 定义一组鲜艳明亮的颜色（高饱和度、高对比度）
+      const colorPalette = [
+        '#FF2D55',  // 鲜红色 (亮红)
+        '#FF9500',  // 亮橙色 (活力橙)
+        '#FFD700',  // 金黄色 (金色)
+        '#00C853',  // 鲜绿色 (翠绿)
+        '#00BCD4',  // 亮青色 (青蓝)
+        '#2196F3',  // 亮蓝色 (天蓝)
+        '#9C27B0',  // 鲜紫色 (紫罗兰)
+        '#E91E63',  // 洋红色 (玫红)
+      ];
+      
+      this.pipelineColorMap = {};
+      this.selectedPipelineIds.forEach((pipeId, idx) => {
+        this.pipelineColorMap[pipeId] = colorPalette[idx % colorPalette.length];
+      });
+    },
+    
+    // Fragment 选择变化
+    onFragmentChange() {
+      if (this.selectedFragmentId) {
+        // 自动全选该 Fragment 下的所有 pipelines
+        this.selectedPipelineIds = [...this.availablePipelines];
+        this.assignPipelineColors();
+        
+        // 居中显示该 Fragment 的所有节点
+        this.$nextTick(() => {
+          this.centerFragmentNodes(this.selectedFragmentId);
+        });
+      } else {
+        this.selectedPipelineIds = [];
+        this.pipelineColorMap = {};
+      }
+    },
+    
+    // 居中显示 Fragment 的所有节点
+    centerFragmentNodes(fragmentId) {
+      const fragmentNodes = this.nodesByFragment[fragmentId] || [];
+      if (fragmentNodes.length === 0) return;
+      
+      // 找到这些节点在 renderedNodes 中的位置
+      const nodeIds = new Set(fragmentNodes.map(n => n.id));
+      const visibleNodes = this.renderedNodes.filter(n => nodeIds.has(n.id));
+      
+      if (visibleNodes.length === 0) return;
+      
+      // 计算边界框
+      let minX = Infinity, minY = Infinity;
+      let maxX = -Infinity, maxY = -Infinity;
+      
+      visibleNodes.forEach(node => {
+        minX = Math.min(minX, node.x);
+        minY = Math.min(minY, node.y);
+        maxX = Math.max(maxX, node.x + this.NODE_WIDTH);
+        maxY = Math.max(maxY, node.y + this.getNodeTotalHeight(node));
+      });
+      
+      // 计算中心点
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      
+      // 计算需要的缩放比例
+      const width = maxX - minX;
+      const height = maxY - minY;
+      const padding = 100; // 边距
+      
+      const scaleX = (this.svgWidth - padding * 2) / width;
+      const scaleY = (this.svgHeight - padding * 2) / height;
+      const newZoom = Math.min(scaleX, scaleY, 1.0); // 最大不超过 1.0
+      
+      // 设置缩放
+      this.zoom = Math.max(0.1, newZoom);
+      
+      // 计算平移，使中心点位于视图中心
+      this.panX = this.svgWidth / 2 - centerX * this.zoom;
+      this.panY = this.svgHeight / 2 - centerY * this.zoom;
+    },
+    
+    // Pipeline 多选变化
+    onPipelineSelectionChange() {
+      this.assignPipelineColors();
+    },
+    
+    // 清除过滤器
+    clearPipelineFilter() {
+      this.selectedFragmentId = null;
+      this.selectedPipelineIds = [];
+      this.pipelineColorMap = {};
+    },
+    
+    // 全选当前 fragment 的所有 pipelines
+    selectAllPipelines() {
+      this.selectedPipelineIds = [...this.availablePipelines];
+      this.assignPipelineColors();
+    },
+    
     handleWheel(event) {
       // 获取 SVG 元素和鼠标位置
       const svg = this.$refs.svgCanvas;
@@ -1336,6 +1541,24 @@ export default {
     },
     getNodeColor(node) {
       if (!node) return '#999';
+      
+      // 如果有 pipeline 过滤器激活
+      if (this.hasActivePipelineFilter) {
+        const nodePipelineId = node.pipeline_id;
+        const nodeFragmentId = node.fragment_id;
+        // 同时检查 fragment_id 和 pipeline_id
+        if (nodePipelineId && 
+            nodeFragmentId === this.selectedFragmentId && 
+            this.selectedPipelineIds.includes(nodePipelineId)) {
+          // 返回该 pipeline 的专属颜色
+          return this.pipelineColorMap[nodePipelineId];
+        } else {
+          // 未选中的节点返回灰色
+          return '#BFBFBF';
+        }
+      }
+      
+      // 原有的颜色逻辑（无过滤器时）
       if (node.is_hotspot) return '#F5222D';  // Doris 红色 - 热点
       const name = node.operator_name || '';
       if (name.includes('MULTI_CAST')) return '#FA8C16';   // Doris 橙色 - 广播操作
@@ -1509,6 +1732,28 @@ export default {
   border-left: 1px solid #e0e0e0;
 }
 
+.controls-row-filter {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-left: 4px;
+  
+  label {
+    font-weight: 500;
+    color: #666;
+    font-size: 13px;
+  }
+}
+
+.pipeline-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 .toolbar-divider {
   width: 1px;
   height: 24px;
@@ -1561,14 +1806,17 @@ export default {
 
 
 .toolbar-btn {
-  width: 36px;
+  min-width: 36px;
   height: 36px;
+  padding: 0 12px;
   border: none;
   background: white;
   border-radius: 4px;
   cursor: pointer;
   color: #666;
   transition: all 0.2s;
+  white-space: nowrap;
+  font-size: 13px;
   
   &:hover:not(:disabled) {
     background: #f5f5f5;
@@ -1643,6 +1891,15 @@ export default {
   &.node-highlight {
     animation: highlight-pulse 1s ease-out;
   }
+  
+  /* Pipeline 过滤器样式 */
+  &.pipeline-dimmed {
+    opacity: 0.3;
+  }
+  
+  &.pipeline-highlight {
+    opacity: 1;
+  }
 }
 
 @keyframes highlight-pulse {
@@ -1655,7 +1912,11 @@ export default {
 }
 
 .node-header {
-  fill: #595959;
+  // 默认颜色只在非过滤模式下应用
+  .node-group:not(.pipeline-highlight):not(.pipeline-dimmed) & {
+    fill: #595959;
+  }
+  
   &.header-scan { fill: #52C41A; }      // Doris 绿色 - 数据源
   &.header-join { fill: #2F54EB; }      // Doris 蓝色 - 核心操作
   &.header-aggregate { fill: #722ED1; } // Doris 紫色 - 聚合
