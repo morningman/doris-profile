@@ -61,11 +61,11 @@
           @mouseleave="endPan"
         >
           <defs>
-            <marker id="arrow" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
-              <polygon points="0 0, 5 3, 0 6" fill="#999" />
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="5" refY="4" orient="auto">
+              <polygon points="0 0, 6 4, 0 8" fill="#616161" />
             </marker>
-            <marker id="arrow-hotspot" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
-              <polygon points="0 0, 5 3, 0 6" fill="#E57373" />
+            <marker id="arrow-hotspot" markerWidth="8" markerHeight="8" refX="5" refY="4" orient="auto">
+              <polygon points="0 0, 6 4, 0 8" fill="#E57373" />
             </marker>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
               <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f5f5f5" stroke-width="0.5" />
@@ -876,7 +876,7 @@ export default {
               labelY: controlY - 8,
               label,
               isHotspot: source.is_hotspot || targetNode.is_hotspot,
-              strokeWidth: Math.min(5, Math.max(1, Math.log10(rows + 1) / 2))
+              strokeWidth: Math.min(6, Math.max(2, Math.log10(rows + 1) * 0.8 + 1.5))
             });
           }
         });
@@ -1417,11 +1417,13 @@ export default {
 
 .connection-line {
   fill: none;
-  stroke: #BDBDBD;
+  stroke: #757575;  // 从 #BDBDBD 改为更深的灰色
+  stroke-width: 2;  // 设置默认宽度
   transition: stroke 0.3s;
   
   &.hotspot-link {
     stroke: #E57373;
+    stroke-width: 3;  // 热点连线更粗
   }
 }
 
