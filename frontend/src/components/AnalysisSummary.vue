@@ -209,7 +209,7 @@ export default {
     },
   },
   setup(props) {
-    const isFormatted = ref(true); // Default to formatted (multi-line)
+    const isFormatted = ref(false); // Default to compact (single-line)
     
     const scoreClass = computed(() => {
       if (props.score >= 90) return "score-excellent";
