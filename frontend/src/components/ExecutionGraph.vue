@@ -1657,7 +1657,6 @@ export default {
 .execution-graph {
   width: 100%;
   height: 100%;
-  min-height: 500px;
   background: white;
   border-radius: 8px;
   overflow: hidden;
@@ -1668,11 +1667,11 @@ export default {
 .view-controls {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 12px 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
-  gap: 12px;
+  gap: 8px;
 }
 
 .controls-row-top {
@@ -1734,14 +1733,14 @@ export default {
 
 .controls-row-filter {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   padding-left: 4px;
   
   label {
     font-weight: 500;
     color: #666;
-    font-size: 13px;
+    font-size: 12px;
   }
 }
 
@@ -1762,11 +1761,12 @@ export default {
 }
 
 .view-btn {
-  padding: 8px 16px;
+  padding: 6px 14px;
   border: 1px solid #d0d0d0;
   background: white;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 13px;
   font-size: 14px;
   transition: all 0.2s;
   
@@ -1797,7 +1797,6 @@ export default {
 .graph-view-container {
   position: relative;
   flex: 1;
-  min-height: 500px;
   background: white;
   display: flex;
   flex-direction: column;
@@ -1806,9 +1805,9 @@ export default {
 
 
 .toolbar-btn {
-  min-width: 36px;
-  height: 36px;
-  padding: 0 12px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
   border: none;
   background: white;
   border-radius: 4px;

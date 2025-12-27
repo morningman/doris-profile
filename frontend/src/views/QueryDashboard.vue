@@ -493,8 +493,8 @@ export default {
   grid-template-columns: 1fr 450px; // Execution Plan 占更多空间，Hotspots 450px
   gap: 20px;
   margin-top: 20px;
-  height: calc(100vh - 280px); // 整体高度自适应
-  min-height: 600px;
+  height: calc(100vh - 220px); // 优化高度计算（header 64px + padding 24px*2 + action-bar ~50px + margins ~60px）
+  min-height: 700px;
 
   @media (max-width: 1400px) {
     grid-template-columns: 1fr; // 小屏幕时垂直布局
