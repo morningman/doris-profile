@@ -1,0 +1,333 @@
+# Doris Profile Analyzer - Cursor Rules
+
+## Project Overview
+
+This is a professional tool for analyzing Apache Doris query profiles with intelligent performance insights. It provides:
+- Accurate parsing of Doris query profiles
+- Smart performance bottleneck detection
+- Interactive DAG-based execution plan visualization
+- AI-powered optimization suggestions
+- Single executable with embedded frontend
+
+## Tech Stack
+
+### Backend (Rust)
+- **Framework**: Warp (async web framework)
+- **Runtime**: Tokio (async runtime)
+- **Serialization**: serde, serde_json, serde_yaml
+- **HTTP Client**: reqwest with rustls-tls (pure Rust, no OpenSSL dependency)
+- **Parsing**: regex, once_cell
+- **Static Files**: rust-embed (embeds frontend into binary)
+- **CLI**: clap v4
+
+### Frontend (Vue 3)
+- **Framework**: Vue 3.3+ with Composition API
+- **Build Tool**: Vue CLI 5.0+
+- **State Management**: Vuex 4
+- **Routing**: Vue Router 4
+- **UI Library**: Element Plus 2.4+
+- **Visualization**: D3.js v7 (for execution graph)
+- **Styling**: SCSS with scoped styles
+- **Code Highlighting**: highlight.js, sql-formatter
+
+## Project Structure
+
+```
+doris-profile/
+├── backend/
+│   ├── src/
+│   │   ├── diagnostic/          # Performance diagnostics (was "analyzer")
+│   │   │   ├── performance_bottleneck.rs  # Hotspot detection (was "hotspot_detector")
+│   │   │   └── optimization_advisor.rs    # Suggestions (was "suggestion_engine")
+│   │   ├── parser/
+│   │   │   ├── engine/          # Parsing engine (was "core")
+│   │   │   │   ├── section_parser.rs     # Summary parsing
+│   │   │   │   ├── fragment_parser.rs    # Fragment/Pipeline parsing
+│   │   │   │   ├── operator_parser.rs    # Operator parsing
+│   │   │   │   ├── tree_builder.rs       # DAG construction
+│   │   │   │   └── value_parser.rs       # Metric parsing
+│   │   │   ├── composer.rs      # Main parser orchestrator
+│   │   │   └── error.rs         # Error types
+│   │   ├── ai/                  # AI diagnosis service
+│   │   │   └── openai_client.rs # OpenAI API integration
+│   │   ├── api/                 # HTTP API handlers
+│   │   ├── config/              # Configuration management
+│   │   ├── models.rs            # Data models
+│   │   └── constants.rs         # Thresholds and limits
+│   └── config/
+│       ├── ai_config.yaml       # AI/LLM configuration
+│       └── default_suggestions.yaml  # Default optimization rules
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── ExecutionGraph.vue       # DAG visualization (was "DAGVisualization")
+│       │   ├── PerformanceIssues.vue    # Issues panel (was "HotSpotsPanel")
+│       │   ├── AnalysisSummary.vue      # Summary metrics
+│       │   ├── FileUploader.vue         # File upload
+│       │   └── TextInput.vue            # Text paste
+│       ├── views/
+│       │   └── QueryDashboard.vue       # Main view (was "ProfileAnalyzer")
+│       ├── store/               # Vuex state management
+│       └── router/              # Vue Router config
+└── test/                        # Test profiles
+
+```
+
+## Architecture & Patterns
+
+### Backend Architecture
+
+1. **Parser Pipeline**:
+   ```
+   ProfileComposer → SectionParser → FragmentParser → OperatorParser → TreeBuilder
+   ```
+
+2. **Analysis Pipeline**:
+   ```
+   Profile → PerformanceBottleneck (detect) → OptimizationAdvisor (suggest)
+   ```
+
+3. **API Endpoints**:
+   - `POST /api/analyze` - Analyze profile text (JSON)
+   - `POST /api/analyze-file` - Analyze uploaded file (multipart)
+   - `POST /api/diagnose-node` - AI diagnosis for single node
+   - `GET /health` - Health check
+   - `GET /*` - Serve embedded frontend (SPA fallback)
+
+### Frontend Architecture
+
+1. **State Management** (Vuex):
+   - `state.result` - Analysis results
+   - `state.isLoading` - Loading state
+   - `state.error` - Error messages
+
+2. **Component Hierarchy**:
+   ```
+   QueryDashboard
+   ├── FileUploader / TextInput (input)
+   ├── AnalysisSummary (results)
+   ├── ExecutionGraph (visualization)
+   └── PerformanceIssues (diagnostics)
+   ```
+
+## Code Style & Conventions
+
+### Rust
+
+- Use `snake_case` for functions, variables, modules
+- Use `PascalCase` for types, structs, enums
+- Prefer explicit error handling with `Result<T, E>`
+- Use `thiserror` for error definitions
+- Document public APIs with `///` doc comments
+- Keep functions focused and testable
+- Use workspace dependencies in `Cargo.toml`
+
+**Example**:
+```rust
+/// Analyze a profile and return detected bottlenecks
+pub fn analyze(profile: &Profile) -> Vec<HotSpot> {
+    let mut hotspots = Vec::new();
+    // ...
+    hotspots
+}
+```
+
+### Vue 3
+
+- Use Composition API (`setup()` with `<script>`)
+- Use `<script>` and `<style lang="scss" scoped>`
+- Prefer `computed()` over methods for derived state
+- Use `ref()` for reactive primitives, `reactive()` for objects
+- Component names: PascalCase files, kebab-case in templates
+- Props: define with types and validation
+- Events: use `@event-name` with descriptive names
+
+**Example**:
+```vue
+<script>
+import { computed, ref } from 'vue';
+
+export default {
+  name: 'ExecutionGraph',
+  props: {
+    tree: { type: Object, required: true }
+  },
+  setup(props) {
+    const selectedNode = ref(null);
+    const nodeCount = computed(() => props.tree?.nodes?.length || 0);
+    return { selectedNode, nodeCount };
+  }
+}
+</script>
+```
+
+### CSS/SCSS
+
+- Use Doris brand colors:
+  - Primary: `#2F54EB` (blue)
+  - Success: `#52C41A` (green)
+  - Warning: `#FA8C16` (orange)
+  - Error: `#F5222D` (red)
+  - Info: `#13C2C2` (cyan)
+- Use CSS variables for theming
+- Scope all component styles
+- Use BEM-like naming for complex components
+
+## Important Domain Concepts
+
+### Profile Structure
+
+1. **Profile Sections**:
+   - Summary: Query metadata (ID, duration, status)
+   - ExecutionSummary: High-level metrics
+   - MergedProfile: Execution tree (Fragments → Pipelines → Operators)
+   - DetailProfile: (ignored, too verbose)
+
+2. **Execution Hierarchy**:
+   ```
+   Fragment (parallel execution unit)
+   └── Pipeline (operator chain)
+       └── Operator (individual operation)
+   ```
+
+3. **Key Metrics**:
+   - `time_percentage`: % of total execution time
+   - `PushRowsTime`: Time spent pushing rows
+   - `PullRowsTime`: Time spent pulling rows
+   - `RowsProduced`: Number of output rows
+   - Custom metrics per operator type
+
+### Operator Types
+
+- `OLAP_SCAN_OPERATOR` / `FILE_SCAN_OPERATOR`: Data source scans
+- `HASH_JOIN_OPERATOR`: Hash join operations
+- `AGGREGATION_OPERATOR`: Aggregation operations
+- `EXCHANGE_OPERATOR`: Data shuffle/exchange
+- `SORT_OPERATOR`: Sorting operations
+- `PROJECT_OPERATOR`: Column projection
+
+### Hotspot Detection
+
+Severity levels based on `time_percentage`:
+- **Critical**: ≥ 50%
+- **High**: ≥ 30%
+- **Medium**: ≥ 15%
+- **Low**: ≥ 5%
+
+## Development Guidelines
+
+### When Working on Backend
+
+1. **Adding New Parser Logic**:
+   - Extend `OperatorParser` for new operator types
+   - Update `models.rs` for new data structures
+   - Add tests in the same file with `#[cfg(test)]`
+
+2. **Adding New Analysis Rules**:
+   - Update `performance_bottleneck.rs` for detection logic
+   - Update `default_suggestions.yaml` for recommendations
+   - Keep severity thresholds in `constants.rs`
+
+3. **Testing**:
+   - Use real profile samples from `test/` directory
+   - Test parsing with `cargo test`
+   - Test full pipeline with integration tests
+
+### When Working on Frontend
+
+1. **Adding New Visualizations**:
+   - Keep D3.js code in computed properties or methods
+   - Use reactive data for updates
+   - Handle responsive layout with CSS Grid/Flexbox
+
+2. **Performance**:
+   - Use `v-once` for static content
+   - Virtualize large lists (1000+ items)
+   - Debounce expensive operations (search, filter)
+
+3. **Styling**:
+   - Use component-scoped styles
+   - Share common styles via SCSS variables
+   - Follow Element Plus design system
+
+### Common Tasks
+
+**Adding a new metric**:
+1. Update `OperatorMetrics` struct in `models.rs`
+2. Update `OperatorParser::parse_counters()` to extract it
+3. Display in `ExecutionGraph.vue` or `PerformanceIssues.vue`
+
+**Adding a new operator type**:
+1. Add to `NodeType` enum in `models.rs`
+2. Update `TreeBuilder::determine_node_type()`
+3. Add color/icon in `ExecutionGraph.vue::getNodeColor()`
+
+**Improving hotspot detection**:
+1. Update logic in `performance_bottleneck.rs`
+2. Add thresholds to `constants.rs::thresholds`
+3. Update suggestions in `default_suggestions.yaml`
+
+## Build & Deploy
+
+### Development
+```bash
+# Backend only
+cd backend && cargo run
+
+# Frontend only
+cd frontend && npm run serve
+```
+
+### Production Build
+```bash
+# Single executable with embedded frontend
+make build
+# Output: build/doris-profile-analyzer
+```
+
+### Dependencies
+- **No OpenSSL required** (uses rustls)
+- **Linux**: `build-essential` only
+- **Node.js**: >= 16.x for building frontend
+
+## Known Issues & Gotchas
+
+1. **Parser Sensitivity**: Profile format varies by Doris version. Test thoroughly.
+2. **Large Profiles**: Files > 50MB may timeout. Increase limits in `constants.rs`.
+3. **Merged Nodes**: ExecutionGraph merges nodes across instances. Handle in `locateAndCenterNode()`.
+4. **Table Names**: Multiple formats exist:
+   - `table name = xxx` (with spaces)
+   - `table_name=xxx` (underscore)
+   - `table_name=xxx(xxx)` (nested parens)
+5. **AI Diagnosis**: Optional feature, gracefully degrades if API key missing.
+
+## Testing Strategy
+
+- **Unit tests**: Per-module in `#[cfg(test)]` blocks
+- **Integration tests**: Full parsing pipeline with real profiles
+- **Manual testing**: Use profiles from `test/` directory
+- **Frontend testing**: Visual testing in development mode
+
+## Performance Considerations
+
+- **Backend**: Async I/O with Tokio, streaming for large files
+- **Frontend**: Virtual scrolling for large trees (1000+ nodes)
+- **Binary size**: ~15-20MB with embedded frontend
+- **Memory**: ~50-100MB for typical profiles
+
+## Security Notes
+
+- File upload limited to 50MB (configurable)
+- No file system access beyond uploads
+- CORS enabled for development
+- AI API keys stored in config (never hardcoded)
+
+## Contributing
+
+When adding new features:
+1. Follow existing naming conventions (see recent refactor)
+2. Add tests for new parsing logic
+3. Update `default_suggestions.yaml` for new recommendations
+4. Document complex algorithms with comments
+5. Keep backend and frontend in sync (models, APIs)
+
