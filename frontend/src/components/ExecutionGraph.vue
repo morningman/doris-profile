@@ -2,41 +2,79 @@
   <div class="execution-graph">
     <!-- View Mode Toggle -->
     <div class="view-controls">
-      <div class="view-tabs">
-        <button 
-          :class="['view-btn', { active: viewMode === 'graph' }]"
-          @click="viewMode = 'graph'"
-        >
-          📊 Graph View
-        </button>
-        <button 
-          :class="['view-btn', { active: viewMode === 'table' }]"
-          @click="viewMode = 'table'"
-        >
-          📋 Table
-        </button>
-        <button 
-          :class="['view-btn', { active: viewMode === 'pipeline' }]"
-          @click="viewMode = 'pipeline'"
-        >
-          📦 Pipeline View
-        </button>
-        <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
+      <!-- 第一排：视图切换和统计 -->
+      <div class="controls-row-top">
+        <div class="view-tabs">
+          <button 
+            :class="['view-btn', { active: viewMode === 'graph' }]"
+            @click="viewMode = 'graph'"
+          >
+            📊 Graph View
+          </button>
+          <button 
+            :class="['view-btn', { active: viewMode === 'table' }]"
+            @click="viewMode = 'table'"
+          >
+            📋 Table
+          </button>
+          <button 
+            :class="['view-btn', { active: viewMode === 'pipeline' }]"
+            @click="viewMode = 'pipeline'"
+          >
+            📦 Pipeline View
+          </button>
+          <span class="node-count">{{ nodeCount }} nodes | {{ fragmentCount }} fragments</span>
+        </div>
+        
+        <!-- 工具栏按钮 -->
+        <div v-if="viewMode === 'graph'" class="view-toolbar">
+          <button @click="zoomIn" class="toolbar-btn" title="放大">
+            <i class="fas fa-search-plus"></i>
+          </button>
+          <button @click="zoomOut" class="toolbar-btn" title="缩小">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button @click="fitToScreen" class="toolbar-btn" title="适应屏幕">
+            <i class="fas fa-expand"></i>
+          </button>
+          <button @click="resetView" class="toolbar-btn" title="重置视图">
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
       </div>
       
-      <!-- 工具栏按钮 -->
-      <div v-if="viewMode === 'graph'" class="view-toolbar">
-        <button @click="zoomIn" class="toolbar-btn" title="放大">
-          <i class="fas fa-search-plus"></i>
+      <!-- 第二排：搜索栏 -->
+      <div v-if="viewMode === 'graph'" class="controls-row-search">
+        <div class="search-box">
+          <input 
+            v-model="searchText" 
+            @input="handleSearch"
+            @keydown.enter="searchNext"
+            type="text" 
+            placeholder="Search nodes (e.g., HASH_JOIN, F8-P9)"
+            class="search-input"
+          />
+          <span v-if="searchResults.length > 0" class="search-count">
+            {{ currentSearchIndex + 1 }} / {{ searchResults.length }}
+          </span>
+        </div>
+        
+        <!-- 搜索导航按钮 -->
+        <button 
+          @click="searchPrev" 
+          :disabled="searchResults.length === 0"
+          class="toolbar-btn" 
+          title="上一个匹配"
+        >
+          <i class="fas fa-chevron-up"></i>
         </button>
-        <button @click="zoomOut" class="toolbar-btn" title="缩小">
-          <i class="fas fa-search-minus"></i>
-        </button>
-        <button @click="fitToScreen" class="toolbar-btn" title="适应屏幕">
-          <i class="fas fa-expand"></i>
-        </button>
-        <button @click="resetView" class="toolbar-btn" title="重置视图">
-          <i class="fas fa-redo"></i>
+        <button 
+          @click="searchNext" 
+          :disabled="searchResults.length === 0"
+          class="toolbar-btn" 
+          title="下一个匹配"
+        >
+          <i class="fas fa-chevron-down"></i>
         </button>
       </div>
     </div>
@@ -469,6 +507,11 @@ export default {
       maxTime: 0,
       needsAutoFit: true, // 标记是否需要自动适应
       topThreeNodeIds: [], // 存储最耗时的三个节点 ID
+      
+      // 搜索相关状态
+      searchText: '',
+      searchResults: [],
+      currentSearchIndex: -1,
     };
   },
   computed: {
@@ -1163,6 +1206,82 @@ export default {
       this.panY = this.svgHeight / 2 - centerY * newZoom;
     },
     resetView() { this.zoom = 1; this.panX = 50; this.panY = 50; this.deselectNode(); },
+    
+    // 搜索相关方法
+    handleSearch() {
+      const query = this.searchText.trim().toLowerCase();
+      if (!query) {
+        this.searchResults = [];
+        this.currentSearchIndex = -1;
+        return;
+      }
+      
+      // 搜索所有匹配的节点
+      this.searchResults = this.renderedNodes.filter(node => {
+        // 匹配操作符名称
+        const operatorMatch = node.operator_name && 
+          node.operator_name.toLowerCase().includes(query);
+        
+        // 匹配 Fragment ID (例如: F8, Fragment 8)
+        const fragmentMatch = node.fragment_id && 
+          node.fragment_id.toLowerCase().includes(query);
+        
+        // 匹配 Pipeline ID (例如: P9, Pipeline 9)
+        const pipelineMatch = node.pipeline_id && 
+          node.pipeline_id.toLowerCase().includes(query);
+        
+        // 匹配 Node ID (例如: 54)
+        const nodeIdMatch = node.plan_node_id && 
+          node.plan_node_id.toString().includes(query);
+        
+        // 匹配组合标识符 (例如: 54-F8-P9, F8-P9)
+        const compositeMatch = node.id && 
+          node.id.toLowerCase().includes(query);
+        
+        // 匹配格式化后的标题 (例如: FILE_SCAN(74-F2-P2))
+        const formattedTitle = this.formatNodeTitle(node);
+        const titleMatch = formattedTitle && 
+          formattedTitle.toLowerCase().includes(query);
+        
+        return operatorMatch || fragmentMatch || pipelineMatch || 
+               nodeIdMatch || compositeMatch || titleMatch;
+      });
+      
+      // 如果有结果，跳转到第一个
+      if (this.searchResults.length > 0) {
+        this.currentSearchIndex = 0;
+        this.focusSearchResult();
+      } else {
+        this.currentSearchIndex = -1;
+      }
+    },
+    
+    searchNext() {
+      if (this.searchResults.length === 0) return;
+      this.currentSearchIndex = (this.currentSearchIndex + 1) % this.searchResults.length;
+      this.focusSearchResult();
+    },
+    
+    searchPrev() {
+      if (this.searchResults.length === 0) return;
+      this.currentSearchIndex = (this.currentSearchIndex - 1 + this.searchResults.length) % this.searchResults.length;
+      this.focusSearchResult();
+    },
+    
+    focusSearchResult() {
+      if (this.currentSearchIndex < 0 || this.currentSearchIndex >= this.searchResults.length) return;
+      
+      const node = this.searchResults[this.currentSearchIndex];
+      if (node) {
+        // 使用现有的 locateAndCenterNode 方法
+        this.locateAndCenterNode(node.id);
+        
+        // 高亮显示当前搜索结果
+        this.selectedNodeId = node.id;
+        this.selectedNode = node;
+      }
+    },
+    
     handleWheel(event) {
       // 获取 SVG 元素和鼠标位置
       const svg = this.$refs.svgCanvas;
@@ -1325,12 +1444,25 @@ export default {
 
 .view-controls {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
+  gap: 12px;
+}
+
+.controls-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.controls-row-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-left: 4px;
 }
 
 .view-tabs {
@@ -1343,6 +1475,45 @@ export default {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  padding: 4px 0;
+  
+  &::placeholder {
+    color: #999;
+  }
+}
+
+.search-count {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  padding-left: 8px;
+  border-left: 1px solid #e0e0e0;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #d0d0d0;
+  margin: 0 4px;
 }
 
 .view-btn {
@@ -1399,9 +1570,14 @@ export default {
   color: #666;
   transition: all 0.2s;
   
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f5f5f5;
     color: #333;
+  }
+  
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
 
