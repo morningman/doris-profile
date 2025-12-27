@@ -158,6 +158,10 @@
                   <text class="node-percentage" :x="NODE_WIDTH - 10" :y="getNodeHeaderHeight(node) + 20" text-anchor="end">
                     {{ formatPct(node.time_percentage) }}
                   </text>
+                  <!-- Max/Min 时间 -->
+                  <text v-if="node.metrics?.operator_max_time_raw" class="node-detail-small" x="10" :y="getNodeHeaderHeight(node) + 35" style="font-size: 9px; fill: #666;">
+                    max: {{ node.metrics.operator_max_time_raw }} | min: {{ node.metrics.operator_min_time_raw || 'N/A' }}
+                  </text>
                 </template>
               </g>
             </g>
@@ -448,7 +452,7 @@ export default {
       NODE_WIDTH: 200,
       NODE_HEIGHT: 90,
       NODE_HEADER_HEIGHT: 28,
-      NODE_BODY_HEIGHT: 56,
+      NODE_BODY_HEIGHT: 68,  // 从56增加到68，以容纳max/min行
       NODE_PROGRESS_HEIGHT: 6,
       zoom: 1,
       panX: 50,

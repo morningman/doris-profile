@@ -189,6 +189,18 @@ pub struct OperatorMetrics {
     pub operator_total_time_raw: Option<String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_max_time: Option<u64>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_max_time_raw: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_min_time: Option<u64>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_min_time_raw: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rows_returned: Option<u64>,
     
     #[serde(skip_serializing_if = "Option::is_none")]

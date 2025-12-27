@@ -69,13 +69,38 @@ impl TreeBuilder {
                 agg.sum.or(agg.avg).map(|v| v as u64)
             });
         
-        let exec_time_raw = parsed.common_counters.iter()
-            .find(|item| item.key == "ExecTime")
+        // Extract exec time stats (avg, max, min)
+        let exec_time_item = parsed.common_counters.iter()
+            .find(|item| item.key == "ExecTime");
+        
+        let exec_time_raw = exec_time_item
             .and_then(|item| ValueParser::extract_first_value(&item.value));
+        
+        let exec_time_agg = exec_time_item
+            .map(|item| ValueParser::parse_aggregated(&item.value));
+        
+        let exec_max_time = exec_time_agg.as_ref()
+            .and_then(|agg| agg.max)
+            .map(|t| t as u64);
+        
+        let exec_min_time = exec_time_agg.as_ref()
+            .and_then(|agg| agg.min)
+            .map(|t| t as u64);
+        
+        // Format max/min time for display
+        let exec_max_time_raw = exec_max_time
+            .map(|ns| Self::format_time_ns(ns));
+        
+        let exec_min_time_raw = exec_min_time
+            .map(|ns| Self::format_time_ns(ns));
         
         let metrics = OperatorMetrics {
             operator_total_time: exec_time.map(|t| t as u64),
             operator_total_time_raw: exec_time_raw,
+            operator_max_time: exec_max_time,
+            operator_max_time_raw: exec_max_time_raw,
+            operator_min_time: exec_min_time,
+            operator_min_time_raw: exec_min_time_raw,
             rows_returned: rows.map(|r| r as u64),
             input_rows: input_rows.map(|r| r as u64),
             memory_used: memory,
@@ -418,6 +443,31 @@ impl TreeBuilder {
         } else {
             vec![]
         }
+    }
+    
+    /// Format time in nanoseconds to human-readable string
+    fn format_time_ns(ns: u64) -> String {
+        if ns == 0 {
+            return "0ns".to_string();
+        }
+        
+        let us = ns as f64 / 1_000.0;
+        if us < 1_000.0 {
+            return format!("{:.2}us", us);
+        }
+        
+        let ms = us / 1_000.0;
+        if ms < 1_000.0 {
+            return format!("{:.2}ms", ms);
+        }
+        
+        let sec = ms / 1_000.0;
+        if sec < 60.0 {
+            return format!("{:.2}s", sec);
+        }
+        
+        let min = sec / 60.0;
+        format!("{:.2}min", min)
     }
     
     /// Check and report nodes with multiple parents
