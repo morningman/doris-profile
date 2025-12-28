@@ -495,6 +495,7 @@
       <div class="table-header">
         <span class="col-fragment">Fragment</span>
         <span class="col-pipeline">Pipeline</span>
+        <span class="col-nodeid">NodeId</span>
         <span class="col-operator">Operator</span>
         <span class="col-time">Time</span>
         <span class="col-pct">%</span>
@@ -508,6 +509,7 @@
         >
           <span class="col-fragment">{{ getShortId(node.fragment_id) }}</span>
           <span class="col-pipeline">{{ getShortId(node.pipeline_id) }}</span>
+          <span class="col-nodeid">{{ node.plan_node_id !== undefined && node.plan_node_id !== null ? node.plan_node_id : '-' }}</span>
           <span class="col-operator">
             <span class="operator-dot" :style="{ background: getNodeColor(node) }"></span>
             {{ node.operator_name }}
@@ -522,21 +524,28 @@
     <!-- Pipeline View -->
     <div v-else-if="viewMode === 'pipeline'" class="pipeline-view">
       <div v-for="fragId in fragmentIds" :key="fragId" class="fragment-section">
-        <div class="fragment-title">
+        <div class="fragment-title" @click="toggleFragmentCollapse(fragId)">
+          <span class="collapse-icon">{{ isFragmentCollapsed(fragId) ? '▶' : '▼' }}</span>
           <span class="frag-icon">📁</span> {{ fragId }}
           <span class="frag-stats">{{ getFragmentStats(fragId) }}</span>
         </div>
-        <div class="pipelines-container">
+        <div v-show="!isFragmentCollapsed(fragId)" class="pipelines-container">
           <div v-for="pipeId in getPipelineIds(fragId)" :key="pipeId" class="pipeline-section">
-            <div class="pipeline-title">📦 {{ pipeId }}</div>
-            <div class="operators-list">
+            <div class="pipeline-title" @click="togglePipelineCollapse(fragId, pipeId)">
+              <span class="collapse-icon">{{ isPipelineCollapsed(fragId, pipeId) ? '▶' : '▼' }}</span>
+              <span class="pipe-icon">📦</span> {{ pipeId }}
+            </div>
+            <div v-show="!isPipelineCollapsed(fragId, pipeId)" class="operators-list">
               <div 
                 v-for="node in getNodesForPipeline(fragId, pipeId)" 
                 :key="node.id"
                 :class="['operator-item', { hotspot: node.is_hotspot }]"
               >
                 <span class="operator-dot" :style="{ background: getNodeColor(node) }"></span>
-                <span class="op-name">{{ node.operator_name }}</span>
+                <span class="op-name">
+                  {{ node.operator_name }}
+                  <span v-if="node.plan_node_id !== undefined && node.plan_node_id !== null" class="op-node-id">({{ node.plan_node_id }})</span>
+                </span>
                 <span v-if="node.time_percentage > 1" class="op-pct">{{ formatPct(node.time_percentage) }}</span>
                 <span class="op-time">{{ node.metrics?.operator_total_time_raw || '' }}</span>
               </div>
@@ -589,6 +598,10 @@ export default {
       selectedFragmentId: null,        // 当前选中的 Fragment ID
       selectedPipelineIds: [],         // 当前选中的多个 Pipeline IDs
       pipelineColorMap: {},            // Pipeline ID -> 颜色的映射
+      
+      // Pipeline View 折叠状态
+      collapsedFragments: new Set(),   // 折叠的 Fragment IDs
+      collapsedPipelines: new Set(),   // 折叠的 Pipeline IDs (格式: "fragId|pipeId")
     };
   },
   computed: {
@@ -651,6 +664,8 @@ export default {
           this.needsAutoFit = true; // 数据变化时需要自动适应
           this.$nextTick(() => this.renderDAG());
         }
+        // 初始化折叠状态：默认全部折叠
+        this.initializeCollapseState();
       },
       deep: true,
       immediate: true
@@ -659,6 +674,9 @@ export default {
       if (newMode === 'graph') {
         this.needsAutoFit = true; // 切换视图时需要自动适应
         this.$nextTick(() => this.renderDAG());
+      } else if (newMode === 'pipeline') {
+        // 切换到 Pipeline View 时初始化折叠状态
+        this.initializeCollapseState();
       }
     }
   },
@@ -1593,6 +1611,45 @@ export default {
     getNodesForPipeline(fragId, pipeId) {
       return (this.nodesByFragment[fragId] || []).filter(n => n.pipeline_id === pipeId);
     },
+    
+    // Pipeline View 折叠相关方法
+    initializeCollapseState() {
+      // 默认折叠所有 Fragment 和 Pipeline
+      this.collapsedFragments = new Set(this.fragmentIds);
+      this.collapsedPipelines = new Set();
+      this.fragmentIds.forEach(fragId => {
+        const pipelineIds = this.getPipelineIds(fragId);
+        pipelineIds.forEach(pipeId => {
+          this.collapsedPipelines.add(`${fragId}|${pipeId}`);
+        });
+      });
+    },
+    isFragmentCollapsed(fragId) {
+      return this.collapsedFragments.has(fragId);
+    },
+    toggleFragmentCollapse(fragId) {
+      if (this.collapsedFragments.has(fragId)) {
+        this.collapsedFragments.delete(fragId);
+      } else {
+        this.collapsedFragments.add(fragId);
+      }
+      // 强制触发 Vue 响应式更新
+      this.collapsedFragments = new Set(this.collapsedFragments);
+    },
+    isPipelineCollapsed(fragId, pipeId) {
+      return this.collapsedPipelines.has(`${fragId}|${pipeId}`);
+    },
+    togglePipelineCollapse(fragId, pipeId) {
+      const key = `${fragId}|${pipeId}`;
+      if (this.collapsedPipelines.has(key)) {
+        this.collapsedPipelines.delete(key);
+      } else {
+        this.collapsedPipelines.add(key);
+      }
+      // 强制触发 Vue 响应式更新
+      this.collapsedPipelines = new Set(this.collapsedPipelines);
+    },
+    
     // 定位并居中显示指定节点
     locateAndCenterNode(nodeId) {
       // 首先在 renderedNodes 中直接查找节点
@@ -2059,7 +2116,7 @@ export default {
 
 .table-header, .table-row {
   display: grid;
-  grid-template-columns: 80px 80px 2fr 120px 80px 100px;
+  grid-template-columns: 80px 80px 70px 2fr 120px 80px 100px;
   gap: 12px;
   padding: 12px;
   font-size: 13px;
@@ -2090,6 +2147,11 @@ export default {
   border-radius: 50%;
   display: inline-block;
   margin-right: 8px;
+}
+
+.col-nodeid {
+  color: #666;
+  text-align: center;
 }
 
 .col-pct {
@@ -2225,10 +2287,28 @@ export default {
   border-radius: 6px;
   font-weight: 600;
   font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.fragment-title:hover {
+  background: #34495e;
+}
+
+.collapse-icon {
+  font-size: 12px;
+  width: 16px;
+  display: inline-block;
+  text-align: center;
 }
 
 .frag-icon {
   font-size: 18px;
+}
+
+.pipe-icon {
+  font-size: 16px;
 }
 
 .frag-stats {
@@ -2247,12 +2327,22 @@ export default {
 }
 
 .pipeline-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   font-size: 13px;
   color: #34495e;
   padding: 8px 12px;
   background: #ecf0f1;
   border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.pipeline-title:hover {
+  background: #d5dbdd;
 }
 
 .operators-list {
@@ -2280,6 +2370,13 @@ export default {
 .op-name {
   flex: 1;
   color: #333;
+}
+
+.op-node-id {
+  color: #999;
+  font-size: 11px;
+  margin-left: 6px;
+  font-weight: normal;
 }
 
 .op-pct {
